@@ -1116,3 +1116,55 @@
   gap: 6px;
   font-size: 14px;
 }
+
+.stat-tile-danger {
+  color: var(--danger);
+}
+
+.report-sale-voided td {
+  color: var(--chart-muted);
+  text-decoration: line-through;
+}
+
+.report-sale-voided td:last-child,
+.report-sale-voided td:nth-child(2) {
+  text-decoration: none;
+}
+
+.void-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.void-banner {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.void-admin-auth {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.void-admin-auth-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}

@@ -63,6 +63,9 @@ export type Sale = {
   note: string | null
   customers: number
   staff_id: string | null
+  voided_at: string | null
+  void_reason: string | null
+  voided_by: string | null
 }
 
 export type DenominationCounts = Record<string, number>

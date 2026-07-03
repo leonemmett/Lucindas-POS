@@ -44,27 +44,31 @@ export function SalesReport() {
   const [viewingSale, setViewingSale] = useState<Sale | null>(null)
 
   const { start, end } = presetRange(preset, { start: customStart, end: customEnd })
-  const { sales, loading } = useSalesInRange(start, end)
+  const { sales, loading, refetch } = useSalesInRange(start, end)
   const staffNames = useStaffNames()
   const { card1Label, card2Label } = useCardLabels()
 
+  const activeSales = useMemo(() => sales.filter((s) => !s.voided_at), [sales])
+  const voidedSales = useMemo(() => sales.filter((s) => s.voided_at), [sales])
+
   const stats = useMemo(() => {
-    const revenue = sales.reduce((sum, s) => sum + s.total, 0)
-    const count = sales.length
+    const revenue = activeSales.reduce((sum, s) => sum + s.total, 0)
+    const count = activeSales.length
     const avg = count ? revenue / count : 0
-    const discount = sales.reduce((sum, s) => sum + s.discount_amount, 0)
-    return { revenue, count, avg, discount }
-  }, [sales])
+    const discount = activeSales.reduce((sum, s) => sum + s.discount_amount, 0)
+    const refundedTotal = voidedSales.reduce((sum, s) => sum + s.total, 0)
+    return { revenue, count, avg, discount, refundedTotal, refundedCount: voidedSales.length }
+  }, [activeSales, voidedSales])
 
   const byPayment = useMemo(() => {
     const totals: Record<string, number> = { cash: 0, card1: 0, card2: 0, transfer: 0 }
-    for (const s of sales) totals[s.payment] = (totals[s.payment] ?? 0) + s.total
+    for (const s of activeSales) totals[s.payment] = (totals[s.payment] ?? 0) + s.total
     return totals
-  }, [sales])
+  }, [activeSales])
 
   const byDay = useMemo(() => {
     const map = new Map<string, { revenue: number; count: number }>()
-    for (const s of sales) {
+    for (const s of activeSales) {
       const day = toLocalDateString(s.ts)
       const prev = map.get(day) ?? { revenue: 0, count: 0 }
       prev.revenue += s.total
@@ -72,11 +76,11 @@ export function SalesReport() {
       map.set(day, prev)
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v }))
-  }, [sales])
+  }, [activeSales])
 
   const topItems = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; revenue: number }>()
-    for (const s of sales) {
+    for (const s of activeSales) {
       for (const item of s.items) {
         const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0 }
         prev.qty += item.qty
@@ -85,11 +89,11 @@ export function SalesReport() {
       }
     }
     return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 10)
-  }, [sales])
+  }, [activeSales])
 
   const byStaff = useMemo(() => {
     const map = new Map<string, { revenue: number; count: number }>()
-    for (const s of sales) {
+    for (const s of activeSales) {
       const key = s.staff_id ?? 'unassigned'
       const prev = map.get(key) ?? { revenue: 0, count: 0 }
       prev.revenue += s.total
@@ -103,7 +107,7 @@ export function SalesReport() {
         name: staffId === 'unassigned' ? 'Unassigned' : (staffNames[staffId] ?? 'Unknown'),
         ...v,
       }))
-  }, [sales, staffNames])
+  }, [activeSales, staffNames])
 
   const maxDayRevenue = Math.max(1, ...byDay.map((d) => d.revenue))
   const maxPayment = Math.max(1, ...Object.values(byPayment))
@@ -166,6 +170,10 @@ export function SalesReport() {
             <div className="stat-tile">
               <span className="stat-tile-label">Discounts given</span>
               <span className="stat-tile-value">{currency.format(stats.discount)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Voided ({stats.refundedCount})</span>
+              <span className="stat-tile-value stat-tile-danger">{currency.format(stats.refundedTotal)}</span>
             </div>
           </div>
 
@@ -272,11 +280,14 @@ export function SalesReport() {
               </thead>
               <tbody>
                 {sales.map((sale) => (
-                  <tr key={sale.id}>
+                  <tr key={sale.id} className={sale.voided_at ? 'report-sale-voided' : ''}>
                     <td>{new Date(sale.ts).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</td>
                     <td>{sale.table_name ?? 'Counter'}</td>
                     <td>{sale.items.reduce((n, i) => n + i.qty, 0)}</td>
-                    <td>{currency.format(sale.total)}</td>
+                    <td>
+                      {currency.format(sale.total)}
+                      {sale.voided_at && <span className="void-badge">Voided</span>}
+                    </td>
                     <td>{paymentLabel(sale.payment, card1Label, card2Label)}</td>
                     <td>{sale.staff_id ? (staffNames[sale.staff_id] ?? '—') : '—'}</td>
                     <td>
@@ -295,8 +306,12 @@ export function SalesReport() {
       {viewingSale && (
         <SaleDetailsModal
           sale={viewingSale}
-          staffName={viewingSale.staff_id ? (staffNames[viewingSale.staff_id] ?? null) : null}
+          staffNames={staffNames}
           onClose={() => setViewingSale(null)}
+          onVoided={() => {
+            setViewingSale(null)
+            refetch()
+          }}
         />
       )}
     </div>
