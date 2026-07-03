@@ -17,12 +17,11 @@ function todayLocalDateString() {
   return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10)
 }
 
-function DiffLine({ label, value }: { label: string; value: number }) {
-  const cls = value === 0 ? '' : value > 0 ? 'cashup-diff-positive' : 'cashup-diff-negative'
+function BreakdownLine({ label, value }: { label: string; value: number }) {
   return (
     <div className="checkout-row cashup-summary-row">
       <span>{label}</span>
-      <span className={cls}>{currency.format(value)}</span>
+      <span>{currency.format(value)}</span>
     </div>
   )
 }
@@ -83,10 +82,14 @@ export function CashupsScreen() {
   }
 
   const totalCashInTill = sumDenominations(counts)
-  const subtotal = totalCashInTill - floatTotal
+  // Card tips and petty cash are both cash staff removed from the till during
+  // the day for legitimate reasons, so they're added back to reconstruct the
+  // day's actual cash takings before comparing against system_cash.
+  const subtotal = totalCashInTill - floatTotal + cardTips + pettyCash
   const cashDifference = subtotal - systemTotals.cash
 
-  const grandCounted = subtotal + readerCard1 + readerCard2 + systemTotals.transfer + cardTips + pettyCash
+  // cardTips/pettyCash already folded into `subtotal` above — don't add them again here.
+  const grandCounted = subtotal + readerCard1 + readerCard2 + systemTotals.transfer
   const grandSystem = systemTotals.cash + systemTotals.card1 + systemTotals.card2 + systemTotals.transfer
   const grandDifference = grandCounted - grandSystem
 
@@ -164,9 +167,34 @@ export function CashupsScreen() {
               </button>
             </div>
 
+            <div className="menu-editor-row">
+              <div>
+                <label htmlFor="card-tips">Card tips paid out (cash)</label>
+                <input
+                  id="card-tips"
+                  type="number"
+                  step="0.01"
+                  value={cardTips}
+                  onChange={(e) => setCardTips(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <label htmlFor="petty-cash">Petty cash spent</label>
+                <input
+                  id="petty-cash"
+                  type="number"
+                  step="0.01"
+                  value={pettyCash}
+                  onChange={(e) => setPettyCash(Number(e.target.value))}
+                />
+              </div>
+            </div>
+
             <div className="checkout-summary cashup-summary">
-              <DiffLine label="Total in till" value={totalCashInTill} />
-              <DiffLine label="Float" value={-floatTotal} />
+              <BreakdownLine label="Total in till" value={totalCashInTill} />
+              <BreakdownLine label="Float" value={-floatTotal} />
+              <BreakdownLine label="Card tips paid out" value={cardTips} />
+              <BreakdownLine label="Petty cash spent" value={pettyCash} />
               <div className="checkout-row checkout-total">
                 <span>Cash subtotal</span>
                 <span>{currency.format(subtotal)}</span>
@@ -222,29 +250,6 @@ export function CashupsScreen() {
               <div className="checkout-row">
                 <span>System transfer</span>
                 <span>{currency.format(systemTotals.transfer)}</span>
-              </div>
-            </div>
-
-            <div className="menu-editor-row">
-              <div>
-                <label htmlFor="card-tips">Card tips</label>
-                <input
-                  id="card-tips"
-                  type="number"
-                  step="0.01"
-                  value={cardTips}
-                  onChange={(e) => setCardTips(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label htmlFor="petty-cash">Petty cash</label>
-                <input
-                  id="petty-cash"
-                  type="number"
-                  step="0.01"
-                  value={pettyCash}
-                  onChange={(e) => setPettyCash(Number(e.target.value))}
-                />
               </div>
             </div>
 
