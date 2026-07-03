@@ -42,3 +42,32 @@ export type OpenTicketItem = {
   menu_item_id: string
   qty: number
 }
+
+export type DenominationCounts = Record<string, number>
+
+export type ReaderCounts = {
+  card1?: number
+  card2?: number
+}
+
+export type Cashup = {
+  id: string
+  date: string
+  staff_name: string | null
+  counts: DenominationCounts | null
+  card_tips: number
+  petty_cash: number
+  subtotal: number | null
+  float_fixed_total: number | null
+  total_cash_in_till: number | null
+  system_cash: number | null
+  cash_difference: number | null
+  reader_counts: ReaderCounts | null
+  system_card1: number | null
+  system_card2: number | null
+  system_transfer: number | null
+  grand_counted: number | null
+  grand_system: number | null
+  grand_difference: number | null
+  created_at: string
+}

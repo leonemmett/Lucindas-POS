@@ -765,3 +765,166 @@
   color: var(--accent);
   font-size: 12px;
 }
+
+.cashup-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cashup-date-picker label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cashup-date-picker input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.cashup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .cashup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cashup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.cashup-section h3 {
+  font-size: 15px;
+}
+
+.cashup-section label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.cashup-section > input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.denom-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.denom-table-header,
+.denom-row,
+.denom-table-total {
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.denom-table-header {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.denom-row input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  width: 100%;
+  min-width: 0;
+}
+
+.denom-table-total {
+  font-weight: 700;
+  color: var(--text-h);
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+.cashup-float-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text);
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.cashup-hint {
+  color: var(--warning);
+}
+
+.cashup-link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.cashup-summary {
+  margin-top: 4px;
+}
+
+.cashup-summary-row span:last-child {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.cashup-grand {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.cashup-diff-positive {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.cashup-diff-negative {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.cashup-saved {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cashup-actions {
+  margin-top: 20px;
+}
+
+.cashup-actions .checkout-confirm {
+  padding: 12px 24px;
+  width: auto;
+}

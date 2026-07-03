@@ -16,7 +16,7 @@ type CheckoutModalProps = {
 
 export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete }: CheckoutModalProps) {
   const { card1Label, card2Label } = useCardLabels()
-  const staffId = useCurrentStaff()
+  const { staffId } = useCurrentStaff()
 
   const [payment, setPayment] = useState<PaymentMethod>('cash')
   const [discountPercent, setDiscountPercent] = useState(0)

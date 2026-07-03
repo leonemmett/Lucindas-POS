@@ -9,6 +9,7 @@ import { MenuGrid } from './components/MenuGrid'
 import { MenuManager } from './components/MenuManager'
 import { IngredientManager } from './components/IngredientManager'
 import { LowStockDashboard } from './components/LowStockDashboard'
+import { CashupsScreen } from './components/CashupsScreen'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
@@ -16,7 +17,7 @@ import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'low-stock'
+type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup'
 
 function App() {
   const { session, loading, signOut } = useAuth()
@@ -183,6 +184,13 @@ function App() {
               Low stock
               {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
             </button>
+            <button
+              type="button"
+              className={view === 'cashup' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('cashup')}
+            >
+              Cashup
+            </button>
           </nav>
         </div>
         <div className="app-header-user">
@@ -250,6 +258,12 @@ function App() {
       {view === 'low-stock' && (
         <main className="app-main">
           <LowStockDashboard ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
+        </main>
+      )}
+
+      {view === 'cashup' && (
+        <main className="app-main">
+          <CashupsScreen />
         </main>
       )}
     </div>

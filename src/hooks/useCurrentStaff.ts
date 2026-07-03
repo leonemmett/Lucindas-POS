@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 export function useCurrentStaff() {
   const { session } = useAuth()
   const [staffId, setStaffId] = useState<string | null>(null)
+  const [staffName, setStaffName] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -12,12 +13,16 @@ export function useCurrentStaff() {
 
     if (!email) {
       setStaffId(null)
+      setStaffName(null)
       return
     }
 
     async function load() {
-      const { data } = await supabase.from('staff').select('id').eq('email', email).maybeSingle()
-      if (!cancelled) setStaffId(data?.id ?? null)
+      const { data } = await supabase.from('staff').select('id, name').eq('email', email).maybeSingle()
+      if (!cancelled) {
+        setStaffId(data?.id ?? null)
+        setStaffName(data?.name ?? null)
+      }
     }
 
     load()
@@ -26,5 +31,5 @@ export function useCurrentStaff() {
     }
   }, [session?.user.email])
 
-  return staffId
+  return { staffId, staffName }
 }
