@@ -7,18 +7,19 @@ import { useTables } from './hooks/useTables'
 import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { MenuManager } from './components/MenuManager'
+import { IngredientManager } from './components/IngredientManager'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu'
+type View = 'pos' | 'menu' | 'ingredients'
 
 function App() {
   const { session, loading, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
-  const { ingredients } = useIngredients()
+  const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
   const { tables } = useTables()
 
   const [view, setView] = useState<View>('pos')
@@ -163,6 +164,13 @@ function App() {
             >
               Menu
             </button>
+            <button
+              type="button"
+              className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('ingredients')}
+            >
+              Ingredients
+            </button>
           </nav>
         </div>
         <div className="app-header-user">
@@ -218,6 +226,12 @@ function App() {
             ingredients={ingredients}
             onChanged={refetchMenuItems}
           />
+        </main>
+      )}
+
+      {view === 'ingredients' && (
+        <main className="app-main">
+          <IngredientManager ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
         </main>
       )}
     </div>

@@ -676,3 +676,51 @@
   color: var(--danger);
   font-weight: 600;
 }
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.ingredient-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ingredient-search {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  min-width: 220px;
+}
+
+.ingredient-toolbar .category-tabs {
+  margin-bottom: 0;
+}
+
+.menu-manager-table td.ingredient-stock-low {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.ingredient-flag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12px;
+}
