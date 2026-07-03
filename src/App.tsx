@@ -8,19 +8,23 @@ import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { MenuManager } from './components/MenuManager'
 import { IngredientManager } from './components/IngredientManager'
+import { LowStockDashboard } from './components/LowStockDashboard'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
+import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients'
+type View = 'pos' | 'menu' | 'ingredients' | 'low-stock'
 
 function App() {
   const { session, loading, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
   const { tables } = useTables()
+
+  const lowStockCount = ingredients.filter(isLowStock).length
 
   const [view, setView] = useState<View>('pos')
   const [lines, setLines] = useState<TicketLine[]>([])
@@ -171,6 +175,14 @@ function App() {
             >
               Ingredients
             </button>
+            <button
+              type="button"
+              className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('low-stock')}
+            >
+              Low stock
+              {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
+            </button>
           </nav>
         </div>
         <div className="app-header-user">
@@ -232,6 +244,12 @@ function App() {
       {view === 'ingredients' && (
         <main className="app-main">
           <IngredientManager ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
+        </main>
+      )}
+
+      {view === 'low-stock' && (
+        <main className="app-main">
+          <LowStockDashboard ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
         </main>
       )}
     </div>

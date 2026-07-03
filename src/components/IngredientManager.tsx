@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { IngredientEditor } from './IngredientEditor'
+import { isLowStock } from '../lib/inventory'
 import type { Ingredient } from '../lib/types'
 
 type Filter = 'all' | 'flavour' | 'container' | 'low'
@@ -19,7 +20,7 @@ export function IngredientManager({ ingredients, loading, onChanged }: Ingredien
     let list = ingredients
     if (filter === 'flavour') list = list.filter((i) => i.is_flavour)
     if (filter === 'container') list = list.filter((i) => i.is_container)
-    if (filter === 'low') list = list.filter((i) => i.stock <= i.low_threshold)
+    if (filter === 'low') list = list.filter(isLowStock)
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       list = list.filter((i) => i.name.toLowerCase().includes(q))
@@ -84,7 +85,7 @@ export function IngredientManager({ ingredients, loading, onChanged }: Ingredien
           </thead>
           <tbody>
             {visible.map((ing) => {
-              const isLow = ing.stock <= ing.low_threshold
+              const isLow = isLowStock(ing)
               return (
                 <tr key={ing.id}>
                   <td>{ing.name}</td>
