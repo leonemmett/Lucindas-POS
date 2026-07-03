@@ -4,7 +4,7 @@ import { useCardLabels } from '../hooks/useCardLabels'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { useFloatComposition } from '../hooks/useFloatComposition'
 import { useSalesTotalsForDate } from '../hooks/useSalesTotalsForDate'
-import { sumDenominations } from '../lib/denominations'
+import { MXN_DENOMINATIONS, sumDenominations } from '../lib/denominations'
 import { DenominationTable } from './DenominationTable'
 import { FloatEditor } from './FloatEditor'
 import type { Cashup, ReaderCounts } from '../lib/types'
@@ -93,6 +93,19 @@ export function CashupsScreen() {
   const grandSystem = systemTotals.cash + systemTotals.card1 + systemTotals.card2 + systemTotals.transfer
   const grandDifference = grandCounted - grandSystem
 
+  // Denominations counted above the float target get pulled from the till;
+  // denominations counted below get topped up so the float is restored.
+  const removed: Record<string, number> = {}
+  const added: Record<string, number> = {}
+  for (const denom of MXN_DENOMINATIONS) {
+    const countedQty = counts[denom] ?? 0
+    const floatQty = floatComposition[denom] ?? 0
+    if (countedQty > floatQty) removed[denom] = countedQty - floatQty
+    else if (countedQty < floatQty) added[denom] = floatQty - countedQty
+  }
+  const removedValue = sumDenominations(removed)
+  const addedValue = sumDenominations(added)
+
   async function handleSave() {
     setSubmitting(true)
     setError(null)
@@ -115,6 +128,7 @@ export function CashupsScreen() {
       grand_counted: grandCounted,
       grand_system: grandSystem,
       grand_difference: grandDifference,
+      till_adjustments: { removed, added },
     }
 
     const { data, error } = await supabase
@@ -166,6 +180,42 @@ export function CashupsScreen() {
                 Edit float
               </button>
             </div>
+
+            {(removedValue > 0 || addedValue > 0) && (
+              <div className="till-adjustments">
+                <h4>Till adjustment</h4>
+                <div className="till-adjustments-grid">
+                  <div>
+                    <span className="till-adjustments-label">Remove from till ({currency.format(removedValue)})</span>
+                    {Object.keys(removed).length === 0 ? (
+                      <p className="cashup-hint">Nothing to remove</p>
+                    ) : (
+                      <ul>
+                        {MXN_DENOMINATIONS.filter((d) => removed[d]).map((d) => (
+                          <li key={d}>
+                            {removed[d]} × {currency.format(d)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <span className="till-adjustments-label">Add to till ({currency.format(addedValue)})</span>
+                    {Object.keys(added).length === 0 ? (
+                      <p className="cashup-hint">Nothing to add</p>
+                    ) : (
+                      <ul>
+                        {MXN_DENOMINATIONS.filter((d) => added[d]).map((d) => (
+                          <li key={d}>
+                            {added[d]} × {currency.format(d)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="menu-editor-row">
               <div>

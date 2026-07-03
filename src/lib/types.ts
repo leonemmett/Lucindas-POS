@@ -50,6 +50,11 @@ export type ReaderCounts = {
   card2?: number
 }
 
+export type TillAdjustments = {
+  removed: DenominationCounts
+  added: DenominationCounts
+}
+
 export type Cashup = {
   id: string
   date: string
@@ -69,5 +74,6 @@ export type Cashup = {
   grand_counted: number | null
   grand_system: number | null
   grand_difference: number | null
+  till_adjustments: TillAdjustments | null
   created_at: string
 }
