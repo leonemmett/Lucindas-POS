@@ -46,17 +46,17 @@ export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete 
       qty: line.qty,
     }))
 
-    const { error } = await supabase.from('sales').insert({
-      table_name: tableName,
-      items,
-      subtotal,
-      discount_percent: discountPercent,
-      discount_amount: discountAmount,
-      total,
-      payment,
-      note: note.trim() || null,
-      customers,
-      staff_id: staffId,
+    const { error } = await supabase.rpc('record_sale', {
+      p_table_name: tableName,
+      p_items: items,
+      p_subtotal: subtotal,
+      p_discount_percent: discountPercent,
+      p_discount_amount: discountAmount,
+      p_total: total,
+      p_payment: payment,
+      p_note: note.trim() || null,
+      p_customers: customers,
+      p_staff_id: staffId,
     })
 
     setSubmitting(false)
