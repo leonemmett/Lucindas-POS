@@ -1,3 +1,5 @@
+export type RecipeEntry = { ingredient_id: string; qty: number }
+
 export type MenuItem = {
   id: string
   name: string
@@ -6,7 +8,19 @@ export type MenuItem = {
   ball_count: number
   weight_grams: number
   container_id: string | null
-  recipe: { ingredient_id: string; qty: number }[]
+  recipe: RecipeEntry[]
+  updated_at: string
+}
+
+export type Ingredient = {
+  id: string
+  name: string
+  unit: string
+  stock: number
+  low_threshold: number
+  cost_per_unit: number
+  is_flavour: boolean
+  is_container: boolean
   updated_at: string
 }
 

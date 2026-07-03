@@ -2,20 +2,26 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { useAuth } from './lib/AuthContext'
 import { useMenuItems } from './hooks/useMenuItems'
+import { useIngredients } from './hooks/useIngredients'
 import { useTables } from './hooks/useTables'
 import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
+import { MenuManager } from './components/MenuManager'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
+type View = 'pos' | 'menu'
+
 function App() {
   const { session, loading, signOut } = useAuth()
-  const { menuItems, loading: menuLoading, error: menuError } = useMenuItems()
+  const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
+  const { ingredients } = useIngredients()
   const { tables } = useTables()
 
+  const [view, setView] = useState<View>('pos')
   const [lines, setLines] = useState<TicketLine[]>([])
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [occupiedTableIds, setOccupiedTableIds] = useState<Set<string>>(new Set())
@@ -140,7 +146,25 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>Lucinda's POS</h1>
+        <div className="app-header-nav">
+          <h1>Lucinda's POS</h1>
+          <nav className="view-tabs">
+            <button
+              type="button"
+              className={view === 'pos' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('pos')}
+            >
+              POS
+            </button>
+            <button
+              type="button"
+              className={view === 'menu' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('menu')}
+            >
+              Menu
+            </button>
+          </nav>
+        </div>
         <div className="app-header-user">
           <span>{session.user.email}</span>
           <button type="button" onClick={signOut}>
@@ -151,34 +175,50 @@ function App() {
 
       {saleComplete && <div className="sale-complete-banner">Sale complete</div>}
 
-      <TableSelector
-        tables={tables}
-        selectedTableId={selectedTableId}
-        occupiedTableIds={occupiedTableIds}
-        disabled={tableSwitching || checkoutOpen}
-        onSelect={handleSelectTable}
-      />
+      {view === 'pos' && (
+        <>
+          <TableSelector
+            tables={tables}
+            selectedTableId={selectedTableId}
+            occupiedTableIds={occupiedTableIds}
+            disabled={tableSwitching || checkoutOpen}
+            onSelect={handleSelectTable}
+          />
 
-      <main className="app-main pos-layout">
-        <MenuGrid menuItems={menuItems} loading={menuLoading} error={menuError} onSelect={handleSelect} />
-        <Ticket
-          lines={lines}
-          onIncrement={handleIncrement}
-          onDecrement={handleDecrement}
-          onRemove={handleRemove}
-          onClear={handleClear}
-          onCharge={() => setCheckoutOpen(true)}
-        />
-      </main>
+          <main className="app-main pos-layout">
+            <MenuGrid menuItems={menuItems} loading={menuLoading} error={menuError} onSelect={handleSelect} />
+            <Ticket
+              lines={lines}
+              onIncrement={handleIncrement}
+              onDecrement={handleDecrement}
+              onRemove={handleRemove}
+              onClear={handleClear}
+              onCharge={() => setCheckoutOpen(true)}
+            />
+          </main>
 
-      {checkoutOpen && (
-        <CheckoutModal
-          lines={lines}
-          subtotal={subtotal}
-          tableName={selectedTableName}
-          onClose={() => setCheckoutOpen(false)}
-          onComplete={handleCheckoutComplete}
-        />
+          {checkoutOpen && (
+            <CheckoutModal
+              lines={lines}
+              subtotal={subtotal}
+              tableName={selectedTableName}
+              onClose={() => setCheckoutOpen(false)}
+              onComplete={handleCheckoutComplete}
+            />
+          )}
+        </>
+      )}
+
+      {view === 'menu' && (
+        <main className="app-main">
+          <MenuManager
+            menuItems={menuItems}
+            loading={menuLoading}
+            error={menuError}
+            ingredients={ingredients}
+            onChanged={refetchMenuItems}
+          />
+        </main>
       )}
     </div>
   )

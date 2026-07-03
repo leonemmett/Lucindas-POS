@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { MenuItem } from '../lib/types'
 
@@ -7,32 +7,26 @@ export function useMenuItems() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .order('category', { ascending: true })
+      .order('name', { ascending: true })
 
-    async function load() {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .order('category', { ascending: true })
-        .order('name', { ascending: true })
-
-      if (cancelled) return
-      if (error) {
-        setError(error.message)
-      } else {
-        setError(null)
-        setMenuItems(data as MenuItem[])
-      }
-      setLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setError(null)
+      setMenuItems(data as MenuItem[])
     }
-
-    load()
-    return () => {
-      cancelled = true
-    }
+    setLoading(false)
   }, [])
 
-  return { menuItems, loading, error }
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { menuItems, loading, error, refetch: load }
 }
