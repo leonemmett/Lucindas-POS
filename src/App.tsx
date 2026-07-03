@@ -1,19 +1,90 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from './lib/supabaseClient'
 import { useAuth } from './lib/AuthContext'
+import { useMenuItems } from './hooks/useMenuItems'
+import { useTables } from './hooks/useTables'
 import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
-import type { MenuItem, TicketLine } from './lib/types'
+import { TableSelector } from './components/TableSelector'
+import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
 function App() {
   const { session, loading, signOut } = useAuth()
+  const { menuItems, loading: menuLoading, error: menuError } = useMenuItems()
+  const { tables } = useTables()
+
   const [lines, setLines] = useState<TicketLine[]>([])
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  const [occupiedTableIds, setOccupiedTableIds] = useState<Set<string>>(new Set())
+  const [tableSwitching, setTableSwitching] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [saleComplete, setSaleComplete] = useState(false)
 
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
+  const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
+
+  function reconstructLines(items: OpenTicketItem[]): TicketLine[] {
+    return items.flatMap((item) => {
+      const menuItem = menuItems.find((m) => m.id === item.menu_item_id)
+      if (!menuItem) return []
+      return [{ key: crypto.randomUUID(), menuItem, qty: item.qty }]
+    })
+  }
+
+  async function refreshOccupiedTables() {
+    const { data } = await supabase.from('open_tickets').select('table_id')
+    setOccupiedTableIds(new Set((data ?? []).map((row) => row.table_id as string)))
+  }
+
+  useEffect(() => {
+    refreshOccupiedTables()
+  }, [])
+
+  async function persistTable(tableId: string, currentLines: TicketLine[]) {
+    if (currentLines.length === 0) {
+      await supabase.from('open_tickets').delete().eq('table_id', tableId)
+      return
+    }
+    const items: OpenTicketItem[] = currentLines.map((line) => ({
+      menu_item_id: line.menuItem.id,
+      qty: line.qty,
+    }))
+    await supabase
+      .from('open_tickets')
+      .upsert({ table_id: tableId, items, updated_at: new Date().toISOString() })
+  }
+
+  // Autosave the active table's ticket so it survives a refresh without requiring a table switch.
+  useEffect(() => {
+    if (!selectedTableId) return
+    const timeout = setTimeout(() => {
+      persistTable(selectedTableId, lines).then(refreshOccupiedTables)
+    }, 600)
+    return () => clearTimeout(timeout)
+  }, [lines, selectedTableId])
+
+  async function handleSelectTable(tableId: string | null) {
+    if (tableId === selectedTableId || tableSwitching) return
+    setTableSwitching(true)
+
+    if (selectedTableId) {
+      await persistTable(selectedTableId, lines)
+    }
+
+    let newLines: TicketLine[] = []
+    if (tableId) {
+      const { data } = await supabase.from('open_tickets').select('items').eq('table_id', tableId).maybeSingle()
+      newLines = reconstructLines((data?.items as OpenTicketItem[]) ?? [])
+    }
+
+    setSelectedTableId(tableId)
+    setLines(newLines)
+    await refreshOccupiedTables()
+    setTableSwitching(false)
+  }
 
   function handleSelect(item: MenuItem) {
     setLines((prev) => {
@@ -47,7 +118,11 @@ function App() {
     setLines([])
   }
 
-  function handleCheckoutComplete() {
+  async function handleCheckoutComplete() {
+    if (selectedTableId) {
+      await supabase.from('open_tickets').delete().eq('table_id', selectedTableId)
+      await refreshOccupiedTables()
+    }
     setLines([])
     setCheckoutOpen(false)
     setSaleComplete(true)
@@ -76,8 +151,16 @@ function App() {
 
       {saleComplete && <div className="sale-complete-banner">Sale complete</div>}
 
+      <TableSelector
+        tables={tables}
+        selectedTableId={selectedTableId}
+        occupiedTableIds={occupiedTableIds}
+        disabled={tableSwitching || checkoutOpen}
+        onSelect={handleSelectTable}
+      />
+
       <main className="app-main pos-layout">
-        <MenuGrid onSelect={handleSelect} />
+        <MenuGrid menuItems={menuItems} loading={menuLoading} error={menuError} onSelect={handleSelect} />
         <Ticket
           lines={lines}
           onIncrement={handleIncrement}
@@ -92,6 +175,7 @@ function App() {
         <CheckoutModal
           lines={lines}
           subtotal={subtotal}
+          tableName={selectedTableName}
           onClose={() => setCheckoutOpen(false)}
           onComplete={handleCheckoutComplete}
         />

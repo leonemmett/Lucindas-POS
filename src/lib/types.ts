@@ -17,3 +17,14 @@ export type TicketLine = {
 }
 
 export type PaymentMethod = 'cash' | 'card1' | 'card2' | 'transfer'
+
+export type Table = {
+  id: string
+  name: string
+  sort_order: number
+}
+
+export type OpenTicketItem = {
+  menu_item_id: string
+  qty: number
+}

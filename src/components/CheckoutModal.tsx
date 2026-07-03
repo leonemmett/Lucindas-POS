@@ -9,11 +9,12 @@ const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: '
 type CheckoutModalProps = {
   lines: TicketLine[]
   subtotal: number
+  tableName: string | null
   onClose: () => void
   onComplete: () => void
 }
 
-export function CheckoutModal({ lines, subtotal, onClose, onComplete }: CheckoutModalProps) {
+export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete }: CheckoutModalProps) {
   const { card1Label, card2Label } = useCardLabels()
   const staffId = useCurrentStaff()
 
@@ -46,7 +47,7 @@ export function CheckoutModal({ lines, subtotal, onClose, onComplete }: Checkout
     }))
 
     const { error } = await supabase.from('sales').insert({
-      table_name: null,
+      table_name: tableName,
       items,
       subtotal,
       discount_percent: discountPercent,
@@ -71,7 +72,7 @@ export function CheckoutModal({ lines, subtotal, onClose, onComplete }: Checkout
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card checkout-modal">
-        <h2>Checkout</h2>
+        <h2>Checkout{tableName ? ` — ${tableName}` : ''}</h2>
 
         <div className="checkout-summary">
           <div className="checkout-row">

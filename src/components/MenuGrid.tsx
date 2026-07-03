@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react'
-import { useMenuItems } from '../hooks/useMenuItems'
 import type { MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
-export function MenuGrid({ onSelect }: { onSelect: (item: MenuItem) => void }) {
-  const { menuItems, loading, error } = useMenuItems()
+type MenuGridProps = {
+  menuItems: MenuItem[]
+  loading: boolean
+  error: string | null
+  onSelect: (item: MenuItem) => void
+}
+
+export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All')
 
   const categories = useMemo(() => {
