@@ -8,9 +8,10 @@ type TicketProps = {
   onDecrement: (key: string) => void
   onRemove: (key: string) => void
   onClear: () => void
+  onCharge: () => void
 }
 
-export function Ticket({ lines, onIncrement, onDecrement, onRemove, onClear }: TicketProps) {
+export function Ticket({ lines, onIncrement, onDecrement, onRemove, onClear, onCharge }: TicketProps) {
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
 
   return (
@@ -63,7 +64,7 @@ export function Ticket({ lines, onIncrement, onDecrement, onRemove, onClear }: T
           <span>Subtotal</span>
           <span>{currency.format(subtotal)}</span>
         </div>
-        <button type="button" className="ticket-charge" disabled={lines.length === 0}>
+        <button type="button" className="ticket-charge" disabled={lines.length === 0} onClick={onCharge}>
           Charge
         </button>
       </div>

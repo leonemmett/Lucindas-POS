@@ -3,12 +3,17 @@ import { useAuth } from './lib/AuthContext'
 import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { Ticket } from './components/Ticket'
+import { CheckoutModal } from './components/CheckoutModal'
 import type { MenuItem, TicketLine } from './lib/types'
 import './App.css'
 
 function App() {
   const { session, loading, signOut } = useAuth()
   const [lines, setLines] = useState<TicketLine[]>([])
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [saleComplete, setSaleComplete] = useState(false)
+
+  const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
 
   function handleSelect(item: MenuItem) {
     setLines((prev) => {
@@ -42,6 +47,13 @@ function App() {
     setLines([])
   }
 
+  function handleCheckoutComplete() {
+    setLines([])
+    setCheckoutOpen(false)
+    setSaleComplete(true)
+    setTimeout(() => setSaleComplete(false), 3000)
+  }
+
   if (loading) {
     return <div className="app-loading" />
   }
@@ -61,6 +73,9 @@ function App() {
           </button>
         </div>
       </header>
+
+      {saleComplete && <div className="sale-complete-banner">Sale complete</div>}
+
       <main className="app-main pos-layout">
         <MenuGrid onSelect={handleSelect} />
         <Ticket
@@ -69,8 +84,18 @@ function App() {
           onDecrement={handleDecrement}
           onRemove={handleRemove}
           onClear={handleClear}
+          onCharge={() => setCheckoutOpen(true)}
         />
       </main>
+
+      {checkoutOpen && (
+        <CheckoutModal
+          lines={lines}
+          subtotal={subtotal}
+          onClose={() => setCheckoutOpen(false)}
+          onComplete={handleCheckoutComplete}
+        />
+      )}
     </div>
   )
 }

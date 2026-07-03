@@ -15,3 +15,5 @@ export type TicketLine = {
   menuItem: MenuItem
   qty: number
 }
+
+export type PaymentMethod = 'cash' | 'card1' | 'card2' | 'transfer'
