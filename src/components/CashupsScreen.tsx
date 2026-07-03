@@ -5,17 +5,12 @@ import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { useFloatComposition } from '../hooks/useFloatComposition'
 import { useSalesTotalsForDate } from '../hooks/useSalesTotalsForDate'
 import { MXN_DENOMINATIONS, sumDenominations } from '../lib/denominations'
+import { todayLocalDateString } from '../lib/dates'
 import { DenominationTable } from './DenominationTable'
 import { FloatEditor } from './FloatEditor'
 import type { Cashup, ReaderCounts } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
-
-function todayLocalDateString() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10)
-}
 
 function BreakdownLine({ label, value }: { label: string; value: number }) {
   return (

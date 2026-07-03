@@ -43,6 +43,28 @@ export type OpenTicketItem = {
   qty: number
 }
 
+export type SaleItem = {
+  menu_item_id: string
+  name: string
+  price: number
+  qty: number
+}
+
+export type Sale = {
+  id: string
+  ts: string
+  table_name: string | null
+  items: SaleItem[]
+  subtotal: number
+  discount_percent: number
+  discount_amount: number
+  total: number
+  payment: PaymentMethod
+  note: string | null
+  customers: number
+  staff_id: string | null
+}
+
 export type DenominationCounts = Record<string, number>
 
 export type ReaderCounts = {

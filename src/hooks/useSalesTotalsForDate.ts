@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { localDateRangeToISO } from '../lib/dates'
 
 export type SalesTotals = {
   cash: number
   card1: number
   card2: number
   transfer: number
-}
-
-function dayBoundsISO(dateStr: string) {
-  const start = new Date(`${dateStr}T00:00:00`)
-  const end = new Date(start)
-  end.setDate(end.getDate() + 1)
-  return { startISO: start.toISOString(), endISO: end.toISOString() }
 }
 
 export function useSalesTotalsForDate(dateStr: string) {
@@ -24,7 +18,7 @@ export function useSalesTotalsForDate(dateStr: string) {
 
     async function load() {
       setLoading(true)
-      const { startISO, endISO } = dayBoundsISO(dateStr)
+      const { startISO, endISO } = localDateRangeToISO(dateStr, dateStr)
       const { data } = await supabase.from('sales').select('payment, total').gte('ts', startISO).lt('ts', endISO)
 
       if (cancelled) return

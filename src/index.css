@@ -14,6 +14,15 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  --chart-1: #2a78d6;
+  --chart-2: #1baf7a;
+  --chart-3: #eda100;
+  --chart-4: #008300;
+  --chart-sequential: #2a78d6;
+  --chart-sequential-track: #cde2fb;
+  --chart-grid: #e1e0d9;
+  --chart-muted: #898781;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
@@ -43,6 +52,15 @@
     --warning-bg: rgba(251, 191, 36, 0.15);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    --chart-1: #3987e5;
+    --chart-2: #199e70;
+    --chart-3: #c98500;
+    --chart-4: #008300;
+    --chart-sequential: #3987e5;
+    --chart-sequential-track: #184f95;
+    --chart-grid: #2c2c2a;
+    --chart-muted: #898781;
   }
 }
 

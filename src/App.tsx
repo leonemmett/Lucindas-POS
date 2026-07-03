@@ -10,6 +10,7 @@ import { MenuManager } from './components/MenuManager'
 import { IngredientManager } from './components/IngredientManager'
 import { LowStockDashboard } from './components/LowStockDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
+import { SalesReport } from './components/SalesReport'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
@@ -17,7 +18,7 @@ import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup'
+type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup' | 'reports'
 
 function App() {
   const { session, loading, signOut } = useAuth()
@@ -191,6 +192,13 @@ function App() {
             >
               Cashup
             </button>
+            <button
+              type="button"
+              className={view === 'reports' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('reports')}
+            >
+              Reports
+            </button>
           </nav>
         </div>
         <div className="app-header-user">
@@ -264,6 +272,12 @@ function App() {
       {view === 'cashup' && (
         <main className="app-main">
           <CashupsScreen />
+        </main>
+      )}
+
+      {view === 'reports' && (
+        <main className="app-main">
+          <SalesReport />
         </main>
       )}
     </div>

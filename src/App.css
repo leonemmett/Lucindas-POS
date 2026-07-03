@@ -968,3 +968,151 @@
   padding: 12px 24px;
   width: auto;
 }
+
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.report-custom-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.report-custom-range input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.stat-tile-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.stat-tile-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.cashup-grid {
+  margin-bottom: 24px;
+}
+
+/* Revenue-by-day column chart */
+.chart-columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 150px;
+  padding-top: 8px;
+  border-bottom: 1px solid var(--chart-grid);
+  overflow-x: auto;
+}
+
+.chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 0 8px;
+  min-width: 8px;
+  height: 100%;
+}
+
+.chart-column-bar {
+  width: 100%;
+  max-width: 24px;
+  background: var(--chart-sequential);
+  border-radius: 4px 4px 0 0;
+}
+
+.chart-column-label {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--chart-muted);
+  white-space: nowrap;
+}
+
+/* Horizontal bar charts (payment methods, top items) */
+.chart-hbars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chart-hbar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-hbar-label {
+  font-size: 13px;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-hbar-track {
+  height: 16px;
+  background: var(--chart-grid);
+  border-radius: 4px;
+}
+
+.chart-hbar-fill {
+  height: 100%;
+  max-width: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.chart-hbar-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-sales-list {
+  overflow-x: auto;
+}
+
+.sale-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
