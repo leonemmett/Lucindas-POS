@@ -9,6 +9,7 @@ import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { MenuManager } from './components/MenuManager'
 import { IngredientManager } from './components/IngredientManager'
+import { TableManager } from './components/TableManager'
 import { LowStockDashboard } from './components/LowStockDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
@@ -21,13 +22,13 @@ import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup' | 'reports' | 'staff'
+type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff'
 
 function App() {
   const { session, loading, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
-  const { tables } = useTables()
+  const { tables, loading: tablesLoading, refetch: refetchTables } = useTables()
   const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
   const { staff, loading: staffLoading, refetch: refetchStaff } = useStaff()
 
@@ -206,6 +207,13 @@ function App() {
             </button>
             <button
               type="button"
+              className={view === 'tables' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('tables')}
+            >
+              Tables
+            </button>
+            <button
+              type="button"
               className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
               onClick={() => setView('low-stock')}
             >
@@ -298,6 +306,12 @@ function App() {
       {view === 'ingredients' && (
         <main className="app-main">
           <IngredientManager ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
+        </main>
+      )}
+
+      {view === 'tables' && (
+        <main className="app-main">
+          <TableManager tables={tables} loading={tablesLoading} onChanged={refetchTables} />
         </main>
       )}
 
