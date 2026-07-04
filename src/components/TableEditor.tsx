@@ -40,6 +40,26 @@ export function TableEditor({ table, onClose, onSaved }: TableEditorProps) {
 
     setSubmitting(true)
     setError(null)
+
+    // A table can be "open" in the POS with an empty cart (nothing ordered
+    // yet) — that's not a real open order, so clear its (empty) ticket row
+    // before deleting rather than blocking on the foreign key.
+    const { data: openTicket } = await supabase
+      .from('open_tickets')
+      .select('items')
+      .eq('table_id', table.id)
+      .maybeSingle()
+
+    if (openTicket && Array.isArray(openTicket.items) && openTicket.items.length > 0) {
+      setSubmitting(false)
+      setError('This table has an open order and can’t be deleted until it’s cleared or charged.')
+      return
+    }
+
+    if (openTicket) {
+      await supabase.from('open_tickets').delete().eq('table_id', table.id)
+    }
+
     const { error } = await supabase.from('tables').delete().eq('id', table.id)
     setSubmitting(false)
 
