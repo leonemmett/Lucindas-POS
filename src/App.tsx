@@ -157,6 +157,7 @@ function App() {
     if (selectedTableId) {
       await supabase.from('open_tickets').delete().eq('table_id', selectedTableId)
       await refreshOccupiedTables()
+      setSelectedTableId(null)
     }
     setLines([])
     setCheckoutOpen(false)
