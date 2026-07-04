@@ -181,6 +181,17 @@
   min-width: 0;
 }
 
+.menu-search {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
 .menu-grid-status {
   padding: 48px 0;
   text-align: center;

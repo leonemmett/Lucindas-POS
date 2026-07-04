@@ -12,6 +12,7 @@ type MenuGridProps = {
 
 export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All')
+  const [search, setSearch] = useState('')
 
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((item) => item.category))
@@ -19,9 +20,18 @@ export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps)
   }, [menuItems])
 
   const visibleItems = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (query) {
+      return menuItems.filter((item) => item.name.toLowerCase().includes(query))
+    }
     if (activeCategory === 'All') return menuItems
     return menuItems.filter((item) => item.category === activeCategory)
-  }, [menuItems, activeCategory])
+  }, [menuItems, activeCategory, search])
+
+  function handleSelectCategory(category: string) {
+    setActiveCategory(category)
+    setSearch('')
+  }
 
   if (loading) {
     return <div className="menu-grid-status">Loading menu…</div>
@@ -37,32 +47,39 @@ export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps)
 
   return (
     <div className="menu-grid-panel">
+      <input
+        type="search"
+        className="menu-search"
+        placeholder="Search items…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
       <div className="category-tabs">
         {categories.map((category) => (
           <button
             key={category}
             type="button"
-            className={category === activeCategory ? 'category-tab active' : 'category-tab'}
-            onClick={() => setActiveCategory(category)}
+            className={!search && category === activeCategory ? 'category-tab active' : 'category-tab'}
+            onClick={() => handleSelectCategory(category)}
           >
             {category}
           </button>
         ))}
       </div>
 
-      <div className="menu-grid">
-        {visibleItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="menu-tile"
-            onClick={() => onSelect(item)}
-          >
-            <span className="menu-tile-name">{item.name}</span>
-            <span className="menu-tile-price">{currency.format(item.price)}</span>
-          </button>
-        ))}
-      </div>
+      {visibleItems.length === 0 ? (
+        <div className="menu-grid-status">No items match &ldquo;{search}&rdquo;.</div>
+      ) : (
+        <div className="menu-grid">
+          {visibleItems.map((item) => (
+            <button key={item.id} type="button" className="menu-tile" onClick={() => onSelect(item)}>
+              <span className="menu-tile-name">{item.name}</span>
+              <span className="menu-tile-price">{currency.format(item.price)}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
