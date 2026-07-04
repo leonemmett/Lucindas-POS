@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useCardLabels } from '../hooks/useCardLabels'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
-import type { PaymentMethod, TicketLine } from '../lib/types'
+import { paymentLabel } from '../lib/payments'
+import { Receipt } from './Receipt'
+import type { PaymentMethod, SaleItem, TicketLine } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -12,6 +14,16 @@ type CheckoutModalProps = {
   tableName: string | null
   onClose: () => void
   onComplete: () => void
+}
+
+type CompletedSale = {
+  ts: Date
+  items: SaleItem[]
+  subtotal: number
+  discountPercent: number
+  discountAmount: number
+  total: number
+  payment: PaymentMethod
 }
 
 export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete }: CheckoutModalProps) {
@@ -24,6 +36,7 @@ export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete 
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null)
 
   const discountAmount = useMemo(() => subtotal * (discountPercent / 100), [subtotal, discountPercent])
   const total = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount])
@@ -39,7 +52,7 @@ export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete 
     setSubmitting(true)
     setError(null)
 
-    const items = lines.map((line) => ({
+    const items: SaleItem[] = lines.map((line) => ({
       menu_item_id: line.menuItem.id,
       name: line.menuItem.name,
       price: line.menuItem.price,
@@ -66,7 +79,35 @@ export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete 
       return
     }
 
-    onComplete()
+    setCompletedSale({ ts: new Date(), items, subtotal, discountPercent, discountAmount, total, payment })
+  }
+
+  if (completedSale) {
+    return (
+      <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div className="modal-card checkout-modal receipt-modal">
+          <Receipt
+            ts={completedSale.ts}
+            tableName={tableName}
+            customers={customers}
+            items={completedSale.items}
+            subtotal={completedSale.subtotal}
+            discountPercent={completedSale.discountPercent}
+            discountAmount={completedSale.discountAmount}
+            total={completedSale.total}
+            paymentLabel={paymentLabel(completedSale.payment, card1Label, card2Label)}
+          />
+          <div className="checkout-actions no-print">
+            <button type="button" className="checkout-cancel" onClick={() => window.print()}>
+              Print receipt
+            </button>
+            <button type="button" className="checkout-confirm" onClick={onComplete}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
