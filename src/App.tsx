@@ -12,21 +12,24 @@ import { IngredientManager } from './components/IngredientManager'
 import { LowStockDashboard } from './components/LowStockDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
+import { StaffManager } from './components/StaffManager'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
+import { useStaff } from './hooks/useStaff'
 import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup' | 'reports'
+type View = 'pos' | 'menu' | 'ingredients' | 'low-stock' | 'cashup' | 'reports' | 'staff'
 
 function App() {
   const { session, loading, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
   const { tables } = useTables()
-  const { isAdmin } = useCurrentStaff()
+  const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
+  const { staff, loading: staffLoading, refetch: refetchStaff } = useStaff()
 
   const lowStockCount = ingredients.filter(isLowStock).length
 
@@ -42,7 +45,7 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    if (view === 'reports' && !isAdmin) setView('pos')
+    if ((view === 'reports' || view === 'staff') && !isAdmin) setView('pos')
   }, [view, isAdmin])
 
   function reconstructLines(items: OpenTicketItem[]): TicketLine[] {
@@ -156,6 +159,24 @@ function App() {
     return <Login />
   }
 
+  if (!staffLoaded) {
+    return <div className="app-loading" />
+  }
+
+  if (!active) {
+    return (
+      <div className="app-loading deactivated-screen">
+        <div className="login-card">
+          <h1>Account deactivated</h1>
+          <p className="login-subtitle">Your account no longer has access. Contact an admin if this seems wrong.</p>
+          <button type="button" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -205,6 +226,15 @@ function App() {
                 onClick={() => setView('reports')}
               >
                 Reports
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'staff' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('staff')}
+              >
+                Staff
               </button>
             )}
           </nav>
@@ -286,6 +316,12 @@ function App() {
       {view === 'reports' && isAdmin && (
         <main className="app-main">
           <SalesReport />
+        </main>
+      )}
+
+      {view === 'staff' && isAdmin && (
+        <main className="app-main">
+          <StaffManager staff={staff} loading={staffLoading} onChanged={refetchStaff} />
         </main>
       )}
     </div>

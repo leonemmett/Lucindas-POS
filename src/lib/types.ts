@@ -1,3 +1,12 @@
+export type Staff = {
+  id: string
+  name: string
+  email: string
+  is_admin: boolean
+  active: boolean
+  created_at: string
+}
+
 export type RecipeEntry = { ingredient_id: string; qty: number }
 
 export type MenuItem = {
