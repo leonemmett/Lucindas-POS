@@ -22,7 +22,7 @@ import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { useGramsPerBall } from './hooks/useGramsPerBall'
 import { isLowStock } from './lib/inventory'
-import { MAX_TABLES } from './lib/constants'
+import { nextTableNumber, tableNameForNumber } from './lib/constants'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
@@ -99,6 +99,19 @@ function App() {
     if (tableId === selectedTableId || tableSwitching) return
     setTableSwitching(true)
 
+    // A walk-in order started at the Counter often ends with the customer
+    // sitting down before paying — moving to a fresh (not-yet-open) table
+    // carries the current cart over instead of discarding it. This never
+    // applies when switching between two already-open tables, since those
+    // are separate in-progress orders that shouldn't get merged.
+    if (selectedTableId === null && lines.length > 0 && tableId && !occupiedTableIds.has(tableId)) {
+      await persistTable(tableId, lines)
+      setSelectedTableId(tableId)
+      await refreshOccupiedTables()
+      setTableSwitching(false)
+      return
+    }
+
     if (selectedTableId) {
       await persistTable(selectedTableId, lines)
     }
@@ -136,20 +149,13 @@ function App() {
   }
 
   async function handleQuickAddTable() {
-    const usedNames = new Set(tables.map((t) => t.name))
-    let nextNumber: number | null = null
-    for (let n = 1; n <= MAX_TABLES; n++) {
-      if (!usedNames.has(String(n))) {
-        nextNumber = n
-        break
-      }
-    }
+    const nextNumber = nextTableNumber(tables)
     if (nextNumber === null) return
 
     setAddingTable(true)
     const { data, error } = await supabase
       .from('tables')
-      .insert({ name: String(nextNumber), sort_order: nextNumber })
+      .insert({ name: tableNameForNumber(nextNumber), sort_order: nextNumber })
       .select()
       .single()
     await refetchTables()

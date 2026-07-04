@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { TableEditor } from './TableEditor'
-import { MAX_TABLES } from '../lib/constants'
+import { MAX_TABLES, nextTableNumber, tableNameForNumber } from '../lib/constants'
 import type { Table } from '../lib/types'
 
 type TableManagerProps = {
@@ -15,13 +15,7 @@ export function TableManager({ tables, loading, onChanged }: TableManagerProps) 
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
-  const nextNumber = useMemo(() => {
-    const usedNames = new Set(tables.map((t) => t.name))
-    for (let n = 1; n <= MAX_TABLES; n++) {
-      if (!usedNames.has(String(n))) return n
-    }
-    return null
-  }, [tables])
+  const nextNumber = useMemo(() => nextTableNumber(tables), [tables])
 
   function handleSaved() {
     setEditingTable(undefined)
@@ -32,7 +26,9 @@ export function TableManager({ tables, loading, onChanged }: TableManagerProps) 
     if (nextNumber === null) return
     setCreating(true)
     setCreateError(null)
-    const { error } = await supabase.from('tables').insert({ name: String(nextNumber), sort_order: nextNumber })
+    const { error } = await supabase
+      .from('tables')
+      .insert({ name: tableNameForNumber(nextNumber), sort_order: nextNumber })
     setCreating(false)
 
     if (error) {
@@ -53,7 +49,11 @@ export function TableManager({ tables, loading, onChanged }: TableManagerProps) 
           onClick={handleQuickAdd}
           disabled={creating || nextNumber === null}
         >
-          {nextNumber === null ? `All ${MAX_TABLES} tables added` : creating ? 'Adding…' : `+ Add table ${nextNumber}`}
+          {nextNumber === null
+            ? `All ${MAX_TABLES} tables added`
+            : creating
+              ? 'Adding…'
+              : `Add ${tableNameForNumber(nextNumber)}`}
         </button>
       </div>
 

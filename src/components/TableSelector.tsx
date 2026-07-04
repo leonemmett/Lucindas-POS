@@ -75,7 +75,7 @@ export function TableSelector({
             aria-label="Add table"
             title="Add table"
           >
-            {addingTable ? '…' : '+ Table'}
+            {addingTable ? '…' : 'Add table'}
           </button>
         )}
         {activeTables.map((table) => (
@@ -106,7 +106,7 @@ export function TableSelector({
               disabled={disabled}
               onClick={() => onSelect(table.id)}
             >
-              + {table.name}
+              {table.name}
             </button>
           ))}
         </div>
