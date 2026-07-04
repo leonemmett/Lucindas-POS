@@ -4,6 +4,7 @@ import { useAuth } from './lib/AuthContext'
 import { useMenuItems } from './hooks/useMenuItems'
 import { useIngredients } from './hooks/useIngredients'
 import { useTables } from './hooks/useTables'
+import { useCurrentStaff } from './hooks/useCurrentStaff'
 import { Login } from './components/Login'
 import { MenuGrid } from './components/MenuGrid'
 import { MenuManager } from './components/MenuManager'
@@ -25,6 +26,7 @@ function App() {
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
   const { tables } = useTables()
+  const { isAdmin } = useCurrentStaff()
 
   const lowStockCount = ingredients.filter(isLowStock).length
 
@@ -38,6 +40,10 @@ function App() {
 
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
+
+  useEffect(() => {
+    if (view === 'reports' && !isAdmin) setView('pos')
+  }, [view, isAdmin])
 
   function reconstructLines(items: OpenTicketItem[]): TicketLine[] {
     return items.flatMap((item) => {
@@ -192,13 +198,15 @@ function App() {
             >
               Cashup
             </button>
-            <button
-              type="button"
-              className={view === 'reports' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('reports')}
-            >
-              Reports
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'reports' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('reports')}
+              >
+                Reports
+              </button>
+            )}
           </nav>
         </div>
         <div className="app-header-user">
@@ -275,7 +283,7 @@ function App() {
         </main>
       )}
 
-      {view === 'reports' && (
+      {view === 'reports' && isAdmin && (
         <main className="app-main">
           <SalesReport />
         </main>

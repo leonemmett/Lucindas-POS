@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import type { Ingredient } from '../lib/types'
 
 type IngredientEditorProps = {
@@ -9,6 +10,7 @@ type IngredientEditorProps = {
 }
 
 export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEditorProps) {
+  const { isAdmin } = useCurrentStaff()
   const [name, setName] = useState(ingredient?.name ?? '')
   const [unit, setUnit] = useState(ingredient?.unit ?? '')
   const [stock, setStock] = useState(ingredient?.stock ?? 0)
@@ -102,17 +104,19 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
               onChange={(e) => setLowThreshold(Number(e.target.value))}
             />
           </div>
-          <div>
-            <label htmlFor="ing-cost">Cost/unit</label>
-            <input
-              id="ing-cost"
-              type="number"
-              min={0}
-              step="0.0001"
-              value={costPerUnit}
-              onChange={(e) => setCostPerUnit(Number(e.target.value))}
-            />
-          </div>
+          {isAdmin && (
+            <div>
+              <label htmlFor="ing-cost">Cost/unit</label>
+              <input
+                id="ing-cost"
+                type="number"
+                min={0}
+                step="0.0001"
+                value={costPerUnit}
+                onChange={(e) => setCostPerUnit(Number(e.target.value))}
+              />
+            </div>
+          )}
         </div>
 
         <label className="checkbox-label">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { IngredientEditor } from './IngredientEditor'
+import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { isLowStock } from '../lib/inventory'
 import type { Ingredient } from '../lib/types'
 
@@ -12,6 +13,7 @@ type IngredientManagerProps = {
 }
 
 export function IngredientManager({ ingredients, loading, onChanged }: IngredientManagerProps) {
+  const { isAdmin } = useCurrentStaff()
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -78,7 +80,7 @@ export function IngredientManager({ ingredients, loading, onChanged }: Ingredien
               <th>Unit</th>
               <th>Stock</th>
               <th>Low threshold</th>
-              <th>Cost/unit</th>
+              {isAdmin && <th>Cost/unit</th>}
               <th>Flags</th>
               <th></th>
             </tr>
@@ -92,7 +94,7 @@ export function IngredientManager({ ingredients, loading, onChanged }: Ingredien
                   <td>{ing.unit}</td>
                   <td className={isLow ? 'ingredient-stock-low' : ''}>{ing.stock}</td>
                   <td>{ing.low_threshold}</td>
-                  <td>{ing.cost_per_unit}</td>
+                  {isAdmin && <td>{ing.cost_per_unit}</td>}
                   <td>
                     {ing.is_flavour && <span className="ingredient-flag">Flavour</span>}
                     {ing.is_container && <span className="ingredient-flag">Container</span>}
