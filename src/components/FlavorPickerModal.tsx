@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { FlavorSearchSelect } from './FlavorSearchSelect'
 import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 type FlavorPickerModalProps = {
@@ -68,14 +69,12 @@ export function FlavorPickerModal({ item, flavours, gramsPerBall, onCancel, onCo
             <label htmlFor={`flavor-slot-${i}`}>
               {isWeightBased ? 'Flavor' : 'Scoop'} {i + 1} ({gramsPerSlot % 1 === 0 ? gramsPerSlot : gramsPerSlot.toFixed(1)}g)
             </label>
-            <select id={`flavor-slot-${i}`} value={selected} onChange={(e) => handleSlotChange(i, e.target.value)}>
-              <option value="">Select flavor…</option>
-              {flavours.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+            <FlavorSearchSelect
+              id={`flavor-slot-${i}`}
+              flavours={flavours}
+              value={selected}
+              onChange={(ingredientId) => handleSlotChange(i, ingredientId)}
+            />
           </div>
         ))}
 

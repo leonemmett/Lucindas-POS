@@ -1324,3 +1324,56 @@
   font-size: 13px;
   color: var(--text);
 }
+
+.flavor-select {
+  position: relative;
+}
+
+.flavor-select-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.flavor-select-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.flavor-select-options li {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.flavor-select-options li:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.flavor-select-empty {
+  color: var(--text);
+  cursor: default !important;
+}
+
+.flavor-select-empty:hover {
+  background: none !important;
+  color: var(--text) !important;
+}
