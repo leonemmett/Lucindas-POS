@@ -72,10 +72,8 @@ function App() {
   }, [])
 
   async function persistTable(tableId: string, currentLines: TicketLine[]) {
-    if (currentLines.length === 0) {
-      await supabase.from('open_tickets').delete().eq('table_id', tableId)
-      return
-    }
+    // A table only closes via explicit checkout (handleCheckoutComplete) — an
+    // empty cart here just means "opened but nothing ordered yet", not closed.
     const items: OpenTicketItem[] = currentLines.map((line) => ({
       menu_item_id: line.menuItem.id,
       qty: line.qty,
@@ -105,8 +103,14 @@ function App() {
 
     let newLines: TicketLine[] = []
     if (tableId) {
-      const { data } = await supabase.from('open_tickets').select('items').eq('table_id', tableId).maybeSingle()
-      newLines = reconstructLines((data?.items as OpenTicketItem[]) ?? [])
+      if (occupiedTableIds.has(tableId)) {
+        const { data } = await supabase.from('open_tickets').select('items').eq('table_id', tableId).maybeSingle()
+        newLines = reconstructLines((data?.items as OpenTicketItem[]) ?? [])
+      } else {
+        // Opening a fresh table — create its row immediately so it shows as
+        // active right away, even before any items are added.
+        await persistTable(tableId, [])
+      }
     }
 
     setSelectedTableId(tableId)

@@ -396,9 +396,27 @@
 
 .table-selector {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
   padding: 16px 24px 0;
+}
+
+.table-selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-selector-available {
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.table-selector-label {
+  font-size: 13px;
+  color: var(--text);
+  margin-right: 4px;
 }
 
 .table-tab {
@@ -422,14 +440,10 @@
   cursor: default;
 }
 
-.table-tab-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  margin-left: 6px;
-  vertical-align: middle;
+.table-tab-available {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text);
 }
 
 .modal-overlay {
