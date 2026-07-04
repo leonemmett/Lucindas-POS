@@ -705,12 +705,14 @@
   cursor: default;
 }
 
-.menu-editor select {
+.menu-editor select,
+.checkout-modal select {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
   color: var(--text-h);
+  width: 100%;
 }
 
 .menu-editor-delete {
@@ -1246,6 +1248,23 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.receipt-line-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.receipt-line-flavors {
+  font-size: 11px;
+  color: var(--text);
+  padding-left: 8px;
+}
+
+.ticket-line-flavors {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
 }
 
 .receipt-line {

@@ -32,7 +32,12 @@ export function Ticket({ lines, onIncrement, onDecrement, onRemove, onClear, onC
           {lines.map((line) => (
             <li key={line.key} className="ticket-line">
               <div className="ticket-line-info">
-                <span className="ticket-line-name">{line.menuItem.name}</span>
+                <span className="ticket-line-name">
+                  {line.menuItem.name}
+                  {line.flavors && line.flavors.length > 0 && (
+                    <span className="ticket-line-flavors"> — {line.flavors.map((f) => f.name).join(', ')}</span>
+                  )}
+                </span>
                 <span className="ticket-line-price">
                   {currency.format(line.menuItem.price * line.qty)}
                 </span>

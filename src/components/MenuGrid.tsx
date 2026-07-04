@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { MenuItem } from '../lib/types'
+import { FlavorPickerModal } from './FlavorPickerModal'
+import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -7,12 +8,17 @@ type MenuGridProps = {
   menuItems: MenuItem[]
   loading: boolean
   error: string | null
-  onSelect: (item: MenuItem) => void
+  ingredients: Ingredient[]
+  gramsPerBall: number
+  onSelect: (item: MenuItem, flavors?: FlavorSelection[]) => void
 }
 
-export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps) {
+export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall, onSelect }: MenuGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [search, setSearch] = useState('')
+  const [flavorPickerItem, setFlavorPickerItem] = useState<MenuItem | null>(null)
+
+  const flavours = useMemo(() => ingredients.filter((i) => i.is_flavour), [ingredients])
 
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((item) => item.category))
@@ -31,6 +37,19 @@ export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps)
   function handleSelectCategory(category: string) {
     setActiveCategory(category)
     setSearch('')
+  }
+
+  function handleTileClick(item: MenuItem) {
+    if (item.ball_count > 0 || item.weight_grams > 0) {
+      setFlavorPickerItem(item)
+    } else {
+      onSelect(item)
+    }
+  }
+
+  function handleFlavorsConfirmed(flavors: FlavorSelection[]) {
+    if (flavorPickerItem) onSelect(flavorPickerItem, flavors)
+    setFlavorPickerItem(null)
   }
 
   if (loading) {
@@ -73,12 +92,22 @@ export function MenuGrid({ menuItems, loading, error, onSelect }: MenuGridProps)
       ) : (
         <div className="menu-grid">
           {visibleItems.map((item) => (
-            <button key={item.id} type="button" className="menu-tile" onClick={() => onSelect(item)}>
+            <button key={item.id} type="button" className="menu-tile" onClick={() => handleTileClick(item)}>
               <span className="menu-tile-name">{item.name}</span>
               <span className="menu-tile-price">{currency.format(item.price)}</span>
             </button>
           ))}
         </div>
+      )}
+
+      {flavorPickerItem && (
+        <FlavorPickerModal
+          item={flavorPickerItem}
+          flavours={flavours}
+          gramsPerBall={gramsPerBall}
+          onCancel={() => setFlavorPickerItem(null)}
+          onConfirm={handleFlavorsConfirmed}
+        />
       )}
     </div>
   )

@@ -40,11 +40,16 @@ export function Receipt({
 
         <div className="receipt-items">
           {items.map((item, i) => (
-            <div className="receipt-line" key={i}>
-              <span>
-                {item.qty} &times; {item.name}
-              </span>
-              <span>{currency.format(item.price * item.qty)}</span>
+            <div className="receipt-line-group" key={i}>
+              <div className="receipt-line">
+                <span>
+                  {item.qty} &times; {item.name}
+                </span>
+                <span>{currency.format(item.price * item.qty)}</span>
+              </div>
+              {item.flavors && item.flavors.length > 0 && (
+                <div className="receipt-line-flavors">{item.flavors.map((f) => f.name).join(', ')}</div>
+              )}
             </div>
           ))}
         </div>

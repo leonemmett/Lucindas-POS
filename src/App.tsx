@@ -20,8 +20,9 @@ import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
 import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
+import { useGramsPerBall } from './hooks/useGramsPerBall'
 import { isLowStock } from './lib/inventory'
-import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
+import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
 type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff' | 'settings'
@@ -34,6 +35,7 @@ function App() {
   const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
   const { staff, loading: staffLoading, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
+  const gramsPerBall = useGramsPerBall()
 
   const lowStockCount = ingredients.filter(isLowStock).length
 
@@ -56,7 +58,7 @@ function App() {
     return items.flatMap((item) => {
       const menuItem = menuItems.find((m) => m.id === item.menu_item_id)
       if (!menuItem) return []
-      return [{ key: crypto.randomUUID(), menuItem, qty: item.qty }]
+      return [{ key: crypto.randomUUID(), menuItem, qty: item.qty, flavors: item.flavors }]
     })
   }
 
@@ -77,6 +79,7 @@ function App() {
     const items: OpenTicketItem[] = currentLines.map((line) => ({
       menu_item_id: line.menuItem.id,
       qty: line.qty,
+      flavors: line.flavors,
     }))
     await supabase
       .from('open_tickets')
@@ -112,12 +115,18 @@ function App() {
     setTableSwitching(false)
   }
 
-  function handleSelect(item: MenuItem) {
+  function handleSelect(item: MenuItem, flavors?: FlavorSelection[]) {
     setLines((prev) => {
-      const existing = prev.find((line) => line.menuItem.id === item.id)
+      // Flavor-customized items always get their own line — each unit needs
+      // its own flavor picks, so re-tapping the tile shouldn't silently bump
+      // the qty of a previously-chosen (and possibly different) combo.
+      if (flavors && flavors.length > 0) {
+        return [...prev, { key: crypto.randomUUID(), menuItem: item, qty: 1, flavors }]
+      }
+      const existing = prev.find((line) => line.menuItem.id === item.id && !line.flavors)
       if (existing) {
         return prev.map((line) =>
-          line.menuItem.id === item.id ? { ...line, qty: line.qty + 1 } : line,
+          line.menuItem.id === item.id && !line.flavors ? { ...line, qty: line.qty + 1 } : line,
         )
       }
       return [...prev, { key: crypto.randomUUID(), menuItem: item, qty: 1 }]
@@ -280,7 +289,14 @@ function App() {
           />
 
           <main className="app-main pos-layout">
-            <MenuGrid menuItems={menuItems} loading={menuLoading} error={menuError} onSelect={handleSelect} />
+            <MenuGrid
+              menuItems={menuItems}
+              loading={menuLoading}
+              error={menuError}
+              ingredients={ingredients}
+              gramsPerBall={gramsPerBall}
+              onSelect={handleSelect}
+            />
             <Ticket
               lines={lines}
               onIncrement={handleIncrement}
