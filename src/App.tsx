@@ -14,15 +14,17 @@ import { LowStockDashboard } from './components/LowStockDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
 import { StaffManager } from './components/StaffManager'
+import { SettingsScreen } from './components/SettingsScreen'
 import { Ticket } from './components/Ticket'
 import { CheckoutModal } from './components/CheckoutModal'
 import { TableSelector } from './components/TableSelector'
 import { useStaff } from './hooks/useStaff'
+import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { isLowStock } from './lib/inventory'
 import type { MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff'
+type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff' | 'settings'
 
 function App() {
   const { session, loading, signOut } = useAuth()
@@ -31,6 +33,7 @@ function App() {
   const { tables, loading: tablesLoading, refetch: refetchTables } = useTables()
   const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
   const { staff, loading: staffLoading, refetch: refetchStaff } = useStaff()
+  const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
 
   const lowStockCount = ingredients.filter(isLowStock).length
 
@@ -46,7 +49,7 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    if ((view === 'reports' || view === 'staff') && !isAdmin) setView('pos')
+    if ((view === 'reports' || view === 'staff' || view === 'settings') && !isAdmin) setView('pos')
   }, [view, isAdmin])
 
   function reconstructLines(items: OpenTicketItem[]): TicketLine[] {
@@ -245,6 +248,15 @@ function App() {
                 Staff
               </button>
             )}
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'settings' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('settings')}
+              >
+                Settings
+              </button>
+            )}
           </nav>
         </div>
         <div className="app-header-user">
@@ -284,6 +296,7 @@ function App() {
               lines={lines}
               subtotal={subtotal}
               tableName={selectedTableName}
+              receiptsEnabled={receiptsEnabled}
               onClose={() => setCheckoutOpen(false)}
               onComplete={handleCheckoutComplete}
             />
@@ -336,6 +349,16 @@ function App() {
       {view === 'staff' && isAdmin && (
         <main className="app-main">
           <StaffManager staff={staff} loading={staffLoading} onChanged={refetchStaff} />
+        </main>
+      )}
+
+      {view === 'settings' && isAdmin && (
+        <main className="app-main">
+          <SettingsScreen
+            receiptsEnabled={receiptsEnabled}
+            loading={receiptsLoading}
+            onSaveReceiptsEnabled={saveReceiptsEnabled}
+          />
         </main>
       )}
     </div>

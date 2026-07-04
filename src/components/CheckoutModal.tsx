@@ -12,6 +12,7 @@ type CheckoutModalProps = {
   lines: TicketLine[]
   subtotal: number
   tableName: string | null
+  receiptsEnabled: boolean
   onClose: () => void
   onComplete: () => void
 }
@@ -26,7 +27,7 @@ type CompletedSale = {
   payment: PaymentMethod
 }
 
-export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete }: CheckoutModalProps) {
+export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onClose, onComplete }: CheckoutModalProps) {
   const { card1Label, card2Label } = useCardLabels()
   const { staffId } = useCurrentStaff()
 
@@ -76,6 +77,11 @@ export function CheckoutModal({ lines, subtotal, tableName, onClose, onComplete 
 
     if (error) {
       setError(error.message)
+      return
+    }
+
+    if (!receiptsEnabled) {
+      onComplete()
       return
     }
 

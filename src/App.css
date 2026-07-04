@@ -1285,3 +1285,12 @@
     display: none !important;
   }
 }
+
+.settings-section {
+  max-width: 480px;
+}
+
+.settings-hint {
+  font-size: 13px;
+  color: var(--text);
+}
