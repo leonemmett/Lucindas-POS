@@ -22,6 +22,7 @@ import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { useGramsPerBall } from './hooks/useGramsPerBall'
 import { isLowStock } from './lib/inventory'
+import { MAX_TABLES } from './lib/constants'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
@@ -46,6 +47,7 @@ function App() {
   const [tableSwitching, setTableSwitching] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [saleComplete, setSaleComplete] = useState(false)
+  const [addingTable, setAddingTable] = useState(false)
 
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
@@ -131,6 +133,30 @@ function App() {
     }
 
     await refreshOccupiedTables()
+  }
+
+  async function handleQuickAddTable() {
+    const usedNames = new Set(tables.map((t) => t.name))
+    let nextNumber: number | null = null
+    for (let n = 1; n <= MAX_TABLES; n++) {
+      if (!usedNames.has(String(n))) {
+        nextNumber = n
+        break
+      }
+    }
+    if (nextNumber === null) return
+
+    setAddingTable(true)
+    const { data, error } = await supabase
+      .from('tables')
+      .insert({ name: String(nextNumber), sort_order: nextNumber })
+      .select()
+      .single()
+    await refetchTables()
+    setAddingTable(false)
+
+    if (error || !data) return
+    await handleSelectTable(data.id)
   }
 
   function handleSelect(item: MenuItem, flavors?: FlavorSelection[]) {
@@ -304,8 +330,10 @@ function App() {
             selectedTableId={selectedTableId}
             occupiedTableIds={occupiedTableIds}
             disabled={tableSwitching || checkoutOpen}
+            addingTable={addingTable}
             onSelect={handleSelectTable}
             onCloseTable={handleCloseTable}
+            onAddTable={handleQuickAddTable}
           />
 
           <main className="app-main pos-layout">

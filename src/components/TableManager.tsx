@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { TableEditor } from './TableEditor'
+import { MAX_TABLES } from '../lib/constants'
 import type { Table } from '../lib/types'
-
-const MAX_TABLES = 8
 
 type TableManagerProps = {
   tables: Table[]

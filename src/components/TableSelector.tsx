@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { MAX_TABLES } from '../lib/constants'
 import type { Table } from '../lib/types'
 
 const LONG_PRESS_MS = 550
@@ -8,8 +9,10 @@ type TableSelectorProps = {
   selectedTableId: string | null
   occupiedTableIds: Set<string>
   disabled: boolean
+  addingTable: boolean
   onSelect: (tableId: string | null) => void
   onCloseTable: (tableId: string) => void
+  onAddTable: () => void
 }
 
 export function TableSelector({
@@ -17,11 +20,14 @@ export function TableSelector({
   selectedTableId,
   occupiedTableIds,
   disabled,
+  addingTable,
   onSelect,
   onCloseTable,
+  onAddTable,
 }: TableSelectorProps) {
   const activeTables = tables.filter((t) => occupiedTableIds.has(t.id))
   const availableTables = tables.filter((t) => !occupiedTableIds.has(t.id))
+  const canAddTable = tables.length < MAX_TABLES
 
   const pressTimer = useRef<number | null>(null)
   const longPressFired = useRef(false)
@@ -60,6 +66,18 @@ export function TableSelector({
         >
           Counter
         </button>
+        {canAddTable && (
+          <button
+            type="button"
+            className="table-tab table-tab-add"
+            disabled={disabled || addingTable}
+            onClick={onAddTable}
+            aria-label="Add table"
+            title="Add table"
+          >
+            {addingTable ? '…' : '+ Table'}
+          </button>
+        )}
         {activeTables.map((table) => (
           <button
             key={table.id}

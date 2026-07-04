@@ -453,6 +453,14 @@
   color: var(--text);
 }
 
+.table-tab-add {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
