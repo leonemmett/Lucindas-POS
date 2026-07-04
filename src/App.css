@@ -427,6 +427,13 @@
   background: var(--surface);
   color: var(--text);
   font-size: 14px;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 0.5s ease;
+}
+
+.table-tab:active {
+  transform: scale(0.93);
 }
 
 .table-tab.active {

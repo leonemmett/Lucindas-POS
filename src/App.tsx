@@ -119,6 +119,20 @@ function App() {
     setTableSwitching(false)
   }
 
+  async function handleCloseTable(tableId: string) {
+    const table = tables.find((t) => t.id === tableId)
+    if (!confirm(`Close table ${table?.name ?? ''}? This clears its current order.`)) return
+
+    await supabase.from('open_tickets').delete().eq('table_id', tableId)
+
+    if (selectedTableId === tableId) {
+      setSelectedTableId(null)
+      setLines([])
+    }
+
+    await refreshOccupiedTables()
+  }
+
   function handleSelect(item: MenuItem, flavors?: FlavorSelection[]) {
     setLines((prev) => {
       // Flavor-customized items always get their own line — each unit needs
@@ -291,6 +305,7 @@ function App() {
             occupiedTableIds={occupiedTableIds}
             disabled={tableSwitching || checkoutOpen}
             onSelect={handleSelectTable}
+            onCloseTable={handleCloseTable}
           />
 
           <main className="app-main pos-layout">

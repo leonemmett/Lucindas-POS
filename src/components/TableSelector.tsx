@@ -1,4 +1,7 @@
+import { useRef } from 'react'
 import type { Table } from '../lib/types'
+
+const LONG_PRESS_MS = 550
 
 type TableSelectorProps = {
   tables: Table[]
@@ -6,11 +9,45 @@ type TableSelectorProps = {
   occupiedTableIds: Set<string>
   disabled: boolean
   onSelect: (tableId: string | null) => void
+  onCloseTable: (tableId: string) => void
 }
 
-export function TableSelector({ tables, selectedTableId, occupiedTableIds, disabled, onSelect }: TableSelectorProps) {
+export function TableSelector({
+  tables,
+  selectedTableId,
+  occupiedTableIds,
+  disabled,
+  onSelect,
+  onCloseTable,
+}: TableSelectorProps) {
   const activeTables = tables.filter((t) => occupiedTableIds.has(t.id))
   const availableTables = tables.filter((t) => !occupiedTableIds.has(t.id))
+
+  const pressTimer = useRef<number | null>(null)
+  const longPressFired = useRef(false)
+
+  function handlePressStart(tableId: string) {
+    longPressFired.current = false
+    pressTimer.current = window.setTimeout(() => {
+      longPressFired.current = true
+      onCloseTable(tableId)
+    }, LONG_PRESS_MS)
+  }
+
+  function handlePressEnd() {
+    if (pressTimer.current !== null) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+  }
+
+  function handleClick(tableId: string) {
+    if (longPressFired.current) {
+      longPressFired.current = false
+      return
+    }
+    onSelect(tableId)
+  }
 
   return (
     <div className="table-selector">
@@ -29,7 +66,11 @@ export function TableSelector({ tables, selectedTableId, occupiedTableIds, disab
             type="button"
             className={table.id === selectedTableId ? 'table-tab active' : 'table-tab'}
             disabled={disabled}
-            onClick={() => onSelect(table.id)}
+            onPointerDown={() => handlePressStart(table.id)}
+            onPointerUp={handlePressEnd}
+            onPointerLeave={handlePressEnd}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={() => handleClick(table.id)}
           >
             {table.name}
           </button>
