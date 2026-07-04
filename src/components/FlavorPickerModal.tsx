@@ -49,7 +49,7 @@ export function FlavorPickerModal({ item, flavours, gramsPerBall, onCancel, onCo
           <>
             <label>How many flavors?</label>
             <div className="payment-options">
-              {[1, 2, 3].map((n) => (
+              {[1, 2, 3, 4].map((n) => (
                 <button
                   key={n}
                   type="button"
