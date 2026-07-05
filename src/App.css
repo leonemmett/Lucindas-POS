@@ -1240,6 +1240,10 @@
   text-decoration: line-through;
 }
 
+.cashup-history-active td:first-child {
+  font-weight: 600;
+}
+
 .receipt-modal {
   max-width: 320px;
 }

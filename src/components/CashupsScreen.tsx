@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useCardLabels } from '../hooks/useCardLabels'
+import { useCashupHistory } from '../hooks/useCashupHistory'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { useFloatComposition } from '../hooks/useFloatComposition'
 import { useSalesTotalsForDate } from '../hooks/useSalesTotalsForDate'
@@ -42,6 +43,7 @@ export function CashupsScreen() {
   const { staffName: defaultStaffName } = useCurrentStaff()
   const { composition: floatComposition, floatTotal, loading: floatLoading, save: saveFloat } = useFloatComposition()
   const { totals: systemTotals, loading: salesLoading } = useSalesTotalsForDate(date)
+  const { cashups: history, loading: historyLoading, error: historyError, refetch: refetchHistory } = useCashupHistory()
 
   useEffect(() => {
     let cancelled = false
@@ -142,6 +144,12 @@ export function CashupsScreen() {
     setExisting(data as Cashup)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+    refetchHistory()
+  }
+
+  function handleEditPast(pastDate: string) {
+    setDate(pastDate)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const loading = loadingExisting || floatLoading
@@ -328,6 +336,58 @@ export function CashupsScreen() {
           {submitting ? 'Saving…' : existing ? 'Update cashup' : 'Save cashup'}
         </button>
       </div>
+
+      <section className="cashup-section cashup-history">
+        <h3>Past cashups</h3>
+
+        {historyLoading && <div className="menu-grid-status">Loading…</div>}
+
+        {!historyLoading && historyError && (
+          <div className="menu-grid-status menu-grid-error">
+            Failed to load history: {historyError}
+            <button type="button" className="menu-manager-add" onClick={refetchHistory}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!historyLoading && !historyError && history.length === 0 && (
+          <div className="menu-grid-status">No cashups saved yet.</div>
+        )}
+
+        {!historyLoading && !historyError && history.length > 0 && (
+          <table className="menu-manager-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Staff</th>
+                <th>Cash difference</th>
+                <th>Grand difference</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.date} className={row.date === date ? 'cashup-history-active' : ''}>
+                  <td>{row.date}</td>
+                  <td>{row.staff_name ?? '—'}</td>
+                  <td className={(row.cash_difference ?? 0) === 0 ? '' : (row.cash_difference ?? 0) > 0 ? 'cashup-diff-positive' : 'cashup-diff-negative'}>
+                    {currency.format(row.cash_difference ?? 0)}
+                  </td>
+                  <td className={(row.grand_difference ?? 0) === 0 ? '' : (row.grand_difference ?? 0) > 0 ? 'cashup-diff-positive' : 'cashup-diff-negative'}>
+                    {currency.format(row.grand_difference ?? 0)}
+                  </td>
+                  <td>
+                    <button type="button" className="menu-manager-edit" onClick={() => handleEditPast(row.date)}>
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       {floatEditorOpen && (
         <FloatEditor composition={floatComposition} onClose={() => setFloatEditorOpen(false)} onSave={saveFloat} />
