@@ -29,7 +29,7 @@ import './App.css'
 type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff' | 'settings'
 
 function App() {
-  const { session, loading, signOut } = useAuth()
+  const { session, loading, isCounterSession, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, error: ingredientsError, refetch: refetchIngredients } = useIngredients()
   const { tables, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useTables()
@@ -48,13 +48,37 @@ function App() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [saleComplete, setSaleComplete] = useState(false)
   const [addingTable, setAddingTable] = useState(false)
+  const [staffLoginOpen, setStaffLoginOpen] = useState(false)
 
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
+    if (isCounterSession) {
+      setView('pos')
+      return
+    }
     if ((view === 'reports' || view === 'staff' || view === 'settings') && !isAdmin) setView('pos')
-  }, [view, isAdmin])
+  }, [view, isAdmin, isCounterSession])
+
+  // Once a staff member signs in over the counter session, the overlay has done its job.
+  useEffect(() => {
+    if (!isCounterSession) setStaffLoginOpen(false)
+  }, [isCounterSession])
+
+  // Each hook's initial fetch fires on mount, which can race ahead of auth
+  // resolving (especially the counter account's network sign-in on a fresh
+  // visit) and never retries on its own. Refetch whenever the signed-in
+  // identity actually changes so a stale, empty first fetch doesn't stick.
+  const sessionUserId = session?.user.id
+  useEffect(() => {
+    if (!sessionUserId) return
+    refetchMenuItems()
+    refetchIngredients()
+    refetchTables()
+    refetchStaff()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUserId])
 
   function reconstructLines(items: OpenTicketItem[]): TicketLine[] {
     return items.flatMap((item) => {
@@ -246,84 +270,94 @@ function App() {
       <header className="app-header">
         <div className="app-header-nav">
           <h1>Lucinda's POS</h1>
-          <nav className="view-tabs">
-            <button
-              type="button"
-              className={view === 'pos' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('pos')}
-            >
-              POS
-            </button>
-            <button
-              type="button"
-              className={view === 'menu' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('menu')}
-            >
-              Menu
-            </button>
-            <button
-              type="button"
-              className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('ingredients')}
-            >
-              Ingredients
-            </button>
-            <button
-              type="button"
-              className={view === 'tables' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('tables')}
-            >
-              Tables
-            </button>
-            <button
-              type="button"
-              className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('low-stock')}
-            >
-              Low stock
-              {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
-            </button>
-            <button
-              type="button"
-              className={view === 'cashup' ? 'view-tab active' : 'view-tab'}
-              onClick={() => setView('cashup')}
-            >
-              Cashup
-            </button>
-            {isAdmin && (
+          {!isCounterSession && (
+            <nav className="view-tabs">
               <button
                 type="button"
-                className={view === 'reports' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('reports')}
+                className={view === 'pos' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('pos')}
               >
-                Reports
+                POS
               </button>
-            )}
-            {isAdmin && (
               <button
                 type="button"
-                className={view === 'staff' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('staff')}
+                className={view === 'menu' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('menu')}
               >
-                Staff
+                Menu
               </button>
-            )}
-            {isAdmin && (
               <button
                 type="button"
-                className={view === 'settings' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('settings')}
+                className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('ingredients')}
               >
-                Settings
+                Ingredients
               </button>
-            )}
-          </nav>
+              <button
+                type="button"
+                className={view === 'tables' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('tables')}
+              >
+                Tables
+              </button>
+              <button
+                type="button"
+                className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('low-stock')}
+              >
+                Low stock
+                {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
+              </button>
+              <button
+                type="button"
+                className={view === 'cashup' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('cashup')}
+              >
+                Cashup
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'reports' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('reports')}
+                >
+                  Reports
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'staff' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('staff')}
+                >
+                  Staff
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'settings' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('settings')}
+                >
+                  Settings
+                </button>
+              )}
+            </nav>
+          )}
         </div>
         <div className="app-header-user">
-          <span>{session.user.email}</span>
-          <button type="button" onClick={signOut}>
-            Sign out
-          </button>
+          {isCounterSession ? (
+            <button type="button" className="cashup-link-button" onClick={() => setStaffLoginOpen(true)}>
+              Staff sign in
+            </button>
+          ) : (
+            <>
+              <span>{session.user.email}</span>
+              <button type="button" onClick={signOut}>
+                Sign out
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -375,7 +409,7 @@ function App() {
         </>
       )}
 
-      {view === 'menu' && (
+      {!isCounterSession && view === 'menu' && (
         <main className="app-main">
           <MenuManager
             menuItems={menuItems}
@@ -387,7 +421,7 @@ function App() {
         </main>
       )}
 
-      {view === 'ingredients' && (
+      {!isCounterSession && view === 'ingredients' && (
         <main className="app-main">
           <IngredientManager
             ingredients={ingredients}
@@ -398,13 +432,13 @@ function App() {
         </main>
       )}
 
-      {view === 'tables' && (
+      {!isCounterSession && view === 'tables' && (
         <main className="app-main">
           <TableManager tables={tables} loading={tablesLoading} error={tablesError} onChanged={refetchTables} />
         </main>
       )}
 
-      {view === 'low-stock' && (
+      {!isCounterSession && view === 'low-stock' && (
         <main className="app-main">
           <LowStockDashboard
             ingredients={ingredients}
@@ -415,25 +449,25 @@ function App() {
         </main>
       )}
 
-      {view === 'cashup' && (
+      {!isCounterSession && view === 'cashup' && (
         <main className="app-main">
           <CashupsScreen />
         </main>
       )}
 
-      {view === 'reports' && isAdmin && (
+      {!isCounterSession && view === 'reports' && isAdmin && (
         <main className="app-main">
           <SalesReport />
         </main>
       )}
 
-      {view === 'staff' && isAdmin && (
+      {!isCounterSession && view === 'staff' && isAdmin && (
         <main className="app-main">
           <StaffManager staff={staff} loading={staffLoading} error={staffError} onChanged={refetchStaff} />
         </main>
       )}
 
-      {view === 'settings' && isAdmin && (
+      {!isCounterSession && view === 'settings' && isAdmin && (
         <main className="app-main">
           <SettingsScreen
             receiptsEnabled={receiptsEnabled}
@@ -441,6 +475,12 @@ function App() {
             onSaveReceiptsEnabled={saveReceiptsEnabled}
           />
         </main>
+      )}
+
+      {staffLoginOpen && (
+        <div className="modal-overlay">
+          <Login onCancel={() => setStaffLoginOpen(false)} />
+        </div>
       )}
     </div>
   )

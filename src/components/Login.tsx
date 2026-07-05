@@ -2,7 +2,11 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../lib/AuthContext'
 
-export function Login() {
+type LoginProps = {
+  onCancel?: () => void
+}
+
+export function Login({ onCancel }: LoginProps) {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,6 +54,12 @@ export function Login() {
         <button type="submit" disabled={submitting}>
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
+
+        {onCancel && (
+          <button type="button" className="login-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
       </form>
     </div>
   )

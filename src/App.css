@@ -88,6 +88,13 @@
   cursor: default;
 }
 
+.login-card button.login-cancel {
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  font-weight: 400;
+}
+
 .login-error {
   color: var(--danger);
   font-size: 13px;
