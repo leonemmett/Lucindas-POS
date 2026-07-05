@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import { MenuItemEditor } from './MenuItemEditor'
 import type { Ingredient, MenuItem } from '../lib/types'
 
@@ -27,6 +28,11 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
     onChanged()
   }
 
+  async function toggleFavourite(item: MenuItem) {
+    await supabase.from('menu_items').update({ is_favourite: !item.is_favourite }).eq('id', item.id)
+    onChanged()
+  }
+
   return (
     <div className="menu-manager">
       <div className="menu-manager-header">
@@ -51,6 +57,7 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
               <th>Price</th>
               <th>Container</th>
               <th>Recipe</th>
+              <th>Favourite</th>
               <th></th>
             </tr>
           </thead>
@@ -65,6 +72,16 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
                   {item.recipe.length === 0
                     ? '—'
                     : item.recipe.map((r) => `${ingredientName(r.ingredient_id)} ×${r.qty}`).join(', ')}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className={item.is_favourite ? 'menu-favourite-star active' : 'menu-favourite-star'}
+                    onClick={() => toggleFavourite(item)}
+                    title={item.is_favourite ? 'Remove from Favourites tab' : 'Add to Favourites tab'}
+                  >
+                    {item.is_favourite ? '★' : '☆'}
+                  </button>
                 </td>
                 <td>
                   <button type="button" className="menu-manager-edit" onClick={() => setEditingItem(item)}>

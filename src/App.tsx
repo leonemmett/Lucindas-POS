@@ -267,9 +267,9 @@ function App() {
 
   return (
     <div className="app-shell">
+      <img src="/logo.png" alt="" aria-hidden="true" className="app-bg-logo" />
       <header className="app-header">
         <div className="app-header-nav">
-          <img src="/logo.png" alt="Lucinda's" className="app-header-logo" />
           {!isCounterSession && (
             <nav className="view-tabs">
               <button

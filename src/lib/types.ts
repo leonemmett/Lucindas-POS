@@ -18,6 +18,7 @@ export type MenuItem = {
   weight_grams: number
   container_id: string | null
   recipe: RecipeEntry[]
+  is_favourite: boolean
   updated_at: string
 }
 

@@ -18,6 +18,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
   const [weightGrams, setWeightGrams] = useState(item?.weight_grams ?? 0)
   const [containerId, setContainerId] = useState<string>(item?.container_id ?? '')
   const [recipe, setRecipe] = useState<RecipeEntry[]>(item?.recipe ?? [])
+  const [isFavourite, setIsFavourite] = useState(item?.is_favourite ?? false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +48,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       weight_grams: weightGrams,
       container_id: containerId || null,
       recipe,
+      is_favourite: isFavourite,
       updated_at: new Date().toISOString(),
     }
 
@@ -145,6 +147,11 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
             </option>
           ))}
         </select>
+
+        <label className="checkbox-label">
+          <input type="checkbox" checked={isFavourite} onChange={(e) => setIsFavourite(e.target.checked)} />
+          Show in Favourites tab
+        </label>
 
         <label>Recipe</label>
         <div className="recipe-rows">

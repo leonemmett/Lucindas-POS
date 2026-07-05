@@ -116,15 +116,22 @@
   border-bottom: 1px solid var(--border);
 }
 
-.app-header-logo {
-  height: 40px;
-  width: auto;
-  display: block;
+.app-bg-logo {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(85vw, 1100px);
+  height: auto;
+  opacity: 0.16;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
 }
 
 @media (prefers-color-scheme: dark) {
   .login-logo,
-  .app-header-logo {
+  .app-bg-logo {
     filter: invert(1) brightness(1.6);
   }
 }
@@ -676,6 +683,19 @@
   background: var(--surface);
   color: var(--text-h);
   font-size: 13px;
+}
+
+.menu-favourite-star {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--border);
+}
+
+.menu-favourite-star.active {
+  color: var(--accent);
 }
 
 .menu-editor {

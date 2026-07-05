@@ -4,6 +4,19 @@ import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
+// Matches the generic scoop-count and weight tiles (e.g. "2 scoops (cup)",
+// "2x1 Mondays (cone)", "400g gelato") but not named specialty items like
+// "CONO DULCE DE LECHE" or "Affogato" that also happen to live in Gelato.
+const GELATO_FAVOURITE_PATTERN = /^(\d+ scoops? \((cone|cup)\)|2x1 mondays \((cone|cup)\)|400g gelato|750g gelato|1kg gelato)$/i
+
+function isFavourite(item: MenuItem): boolean {
+  if (item.is_favourite) return true
+  if (item.category === 'Coffee') return true
+  if (item.category === 'Bakery' && item.name.trim().toLowerCase().startsWith('cookie')) return true
+  if (item.category === 'Gelato' && GELATO_FAVOURITE_PATTERN.test(item.name.trim())) return true
+  return false
+}
+
 type MenuGridProps = {
   menuItems: MenuItem[]
   loading: boolean
@@ -23,7 +36,7 @@ export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall,
 
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((item) => item.category))
-    return ['All', ...Array.from(set).sort()]
+    return ['All', 'Favourites', ...Array.from(set).sort()]
   }, [menuItems])
 
   const visibleItems = useMemo(() => {
@@ -32,6 +45,7 @@ export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall,
       return menuItems.filter((item) => item.name.toLowerCase().includes(query))
     }
     if (activeCategory === 'All') return menuItems
+    if (activeCategory === 'Favourites') return menuItems.filter(isFavourite)
     return menuItems.filter((item) => item.category === activeCategory)
   }, [menuItems, activeCategory, search])
 
