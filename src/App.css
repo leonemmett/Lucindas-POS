@@ -44,9 +44,11 @@
   box-shadow: var(--shadow);
 }
 
-.login-card h1 {
-  font-size: 22px;
-  text-align: center;
+.login-logo {
+  display: block;
+  width: 180px;
+  height: auto;
+  margin: 0 auto 8px;
 }
 
 .login-subtitle {
@@ -114,8 +116,17 @@
   border-bottom: 1px solid var(--border);
 }
 
-.app-header h1 {
-  font-size: 18px;
+.app-header-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-logo,
+  .app-header-logo {
+    filter: invert(1) brightness(1.6);
+  }
 }
 
 .app-header-nav {

@@ -25,7 +25,7 @@ export function Login({ onCancel }: LoginProps) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Lucinda's POS</h1>
+        <img src="/logo.png" alt="Lucinda's" className="login-logo" />
         <p className="login-subtitle">Sign in to continue</p>
 
         <label htmlFor="email">Email</label>

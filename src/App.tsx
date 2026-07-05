@@ -269,7 +269,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="app-header-nav">
-          <h1>Lucinda's POS</h1>
+          <img src="/logo.png" alt="Lucinda's" className="app-header-logo" />
           {!isCounterSession && (
             <nav className="view-tabs">
               <button
