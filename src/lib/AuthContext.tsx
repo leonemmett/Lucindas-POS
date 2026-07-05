@@ -10,11 +10,23 @@ const COUNTER_PASSWORD = import.meta.env.VITE_COUNTER_PASSWORD as string | undef
 
 async function signInAsCounter() {
   if (!COUNTER_EMAIL || !COUNTER_PASSWORD) return null
-  const { data } = await supabase.auth.signInWithPassword({
-    email: COUNTER_EMAIL,
-    password: COUNTER_PASSWORD,
-  })
-  return data.session ?? null
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: COUNTER_EMAIL,
+      password: COUNTER_PASSWORD,
+    })
+    if (error) throw error
+    return data.session ?? null
+  } catch {
+    return null
+  }
+}
+
+// A cold visit's first request to Supabase can occasionally hiccup (slow
+// DNS/TLS on a fresh connection, a dropped packet) — one retry covers that
+// without leaving a walk-up customer stuck on a login screen.
+async function signInAsCounterWithRetry() {
+  return (await signInAsCounter()) ?? (await signInAsCounter())
 }
 
 type AuthContextValue = {
@@ -32,10 +44,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session ?? (await signInAsCounter()))
+    async function init() {
+      let activeSession: Session | null = null
+      try {
+        const { data } = await supabase.auth.getSession()
+        activeSession = data.session
+      } catch {
+        activeSession = null
+      }
+
+      if (!activeSession) activeSession = await signInAsCounterWithRetry()
+
+      setSession(activeSession)
       setLoading(false)
-    })
+    }
+
+    init()
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
@@ -51,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
-    await signInAsCounter()
+    await signInAsCounterWithRetry()
   }
 
   const isCounterSession = Boolean(COUNTER_EMAIL) && session?.user.email === COUNTER_EMAIL
