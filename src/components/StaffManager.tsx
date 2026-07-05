@@ -5,10 +5,11 @@ import type { Staff } from '../lib/types'
 type StaffManagerProps = {
   staff: Staff[]
   loading: boolean
+  error: string | null
   onChanged: () => void
 }
 
-export function StaffManager({ staff, loading, onChanged }: StaffManagerProps) {
+export function StaffManager({ staff, loading, error, onChanged }: StaffManagerProps) {
   const [editingStaff, setEditingStaff] = useState<Staff | null | undefined>(undefined)
 
   function handleSaved() {
@@ -26,9 +27,19 @@ export function StaffManager({ staff, loading, onChanged }: StaffManagerProps) {
       </div>
 
       {loading && <div className="menu-grid-status">Loading staff…</div>}
-      {!loading && staff.length === 0 && <div className="menu-grid-status">No staff yet.</div>}
 
-      {!loading && staff.length > 0 && (
+      {!loading && error && (
+        <div className="menu-grid-status menu-grid-error">
+          Failed to load staff: {error}
+          <button type="button" className="menu-manager-add" onClick={onChanged}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && staff.length === 0 && <div className="menu-grid-status">No staff yet.</div>}
+
+      {!loading && !error && staff.length > 0 && (
         <table className="menu-manager-table">
           <thead>
             <tr>

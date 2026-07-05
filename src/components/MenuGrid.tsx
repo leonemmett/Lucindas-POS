@@ -11,9 +11,10 @@ type MenuGridProps = {
   ingredients: Ingredient[]
   gramsPerBall: number
   onSelect: (item: MenuItem, flavors?: FlavorSelection[]) => void
+  onRetry: () => void
 }
 
-export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall, onSelect }: MenuGridProps) {
+export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall, onSelect, onRetry }: MenuGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [search, setSearch] = useState('')
   const [flavorPickerItem, setFlavorPickerItem] = useState<MenuItem | null>(null)
@@ -57,7 +58,14 @@ export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall,
   }
 
   if (error) {
-    return <div className="menu-grid-status menu-grid-error">Failed to load menu: {error}</div>
+    return (
+      <div className="menu-grid-status menu-grid-error">
+        Failed to load menu: {error}
+        <button type="button" className="menu-manager-add" onClick={onRetry}>
+          Retry
+        </button>
+      </div>
+    )
   }
 
   if (menuItems.length === 0) {

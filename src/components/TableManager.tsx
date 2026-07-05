@@ -7,10 +7,11 @@ import type { Table } from '../lib/types'
 type TableManagerProps = {
   tables: Table[]
   loading: boolean
+  error: string | null
   onChanged: () => void
 }
 
-export function TableManager({ tables, loading, onChanged }: TableManagerProps) {
+export function TableManager({ tables, loading, error, onChanged }: TableManagerProps) {
   const [editingTable, setEditingTable] = useState<Table | null | undefined>(undefined)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -60,9 +61,19 @@ export function TableManager({ tables, loading, onChanged }: TableManagerProps) 
       {createError && <p className="checkout-error">{createError}</p>}
 
       {loading && <div className="menu-grid-status">Loading tables…</div>}
-      {!loading && tables.length === 0 && <div className="menu-grid-status">No tables yet.</div>}
 
-      {!loading && tables.length > 0 && (
+      {!loading && error && (
+        <div className="menu-grid-status menu-grid-error">
+          Failed to load tables: {error}
+          <button type="button" className="menu-manager-add" onClick={onChanged}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && tables.length === 0 && <div className="menu-grid-status">No tables yet.</div>}
+
+      {!loading && !error && tables.length > 0 && (
         <table className="menu-manager-table">
           <thead>
             <tr>

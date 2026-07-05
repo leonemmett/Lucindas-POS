@@ -5,11 +5,17 @@ import type { Ingredient } from '../lib/types'
 export function useIngredients() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('ingredients').select('*').order('name', { ascending: true })
-    setIngredients((data as Ingredient[]) ?? [])
+    const { data, error } = await supabase.from('ingredients').select('*').order('name', { ascending: true })
+    if (error) {
+      setError(error.message)
+    } else {
+      setError(null)
+      setIngredients(data as Ingredient[])
+    }
     setLoading(false)
   }, [])
 
@@ -17,5 +23,5 @@ export function useIngredients() {
     load()
   }, [load])
 
-  return { ingredients, loading, refetch: load }
+  return { ingredients, loading, error, refetch: load }
 }

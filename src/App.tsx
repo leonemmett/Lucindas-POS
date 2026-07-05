@@ -31,10 +31,10 @@ type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' |
 function App() {
   const { session, loading, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
-  const { ingredients, loading: ingredientsLoading, refetch: refetchIngredients } = useIngredients()
-  const { tables, loading: tablesLoading, refetch: refetchTables } = useTables()
+  const { ingredients, loading: ingredientsLoading, error: ingredientsError, refetch: refetchIngredients } = useIngredients()
+  const { tables, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useTables()
   const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
-  const { staff, loading: staffLoading, refetch: refetchStaff } = useStaff()
+  const { staff, loading: staffLoading, error: staffError, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
   const gramsPerBall = useGramsPerBall()
 
@@ -350,6 +350,7 @@ function App() {
               ingredients={ingredients}
               gramsPerBall={gramsPerBall}
               onSelect={handleSelect}
+              onRetry={refetchMenuItems}
             />
             <Ticket
               lines={lines}
@@ -388,19 +389,29 @@ function App() {
 
       {view === 'ingredients' && (
         <main className="app-main">
-          <IngredientManager ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
+          <IngredientManager
+            ingredients={ingredients}
+            loading={ingredientsLoading}
+            error={ingredientsError}
+            onChanged={refetchIngredients}
+          />
         </main>
       )}
 
       {view === 'tables' && (
         <main className="app-main">
-          <TableManager tables={tables} loading={tablesLoading} onChanged={refetchTables} />
+          <TableManager tables={tables} loading={tablesLoading} error={tablesError} onChanged={refetchTables} />
         </main>
       )}
 
       {view === 'low-stock' && (
         <main className="app-main">
-          <LowStockDashboard ingredients={ingredients} loading={ingredientsLoading} onChanged={refetchIngredients} />
+          <LowStockDashboard
+            ingredients={ingredients}
+            loading={ingredientsLoading}
+            error={ingredientsError}
+            onChanged={refetchIngredients}
+          />
         </main>
       )}
 
@@ -418,7 +429,7 @@ function App() {
 
       {view === 'staff' && isAdmin && (
         <main className="app-main">
-          <StaffManager staff={staff} loading={staffLoading} onChanged={refetchStaff} />
+          <StaffManager staff={staff} loading={staffLoading} error={staffError} onChanged={refetchStaff} />
         </main>
       )}
 

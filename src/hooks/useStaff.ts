@@ -5,11 +5,17 @@ import type { Staff } from '../lib/types'
 export function useStaff() {
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('staff').select('*').order('name', { ascending: true })
-    setStaff((data as Staff[]) ?? [])
+    const { data, error } = await supabase.from('staff').select('*').order('name', { ascending: true })
+    if (error) {
+      setError(error.message)
+    } else {
+      setError(null)
+      setStaff(data as Staff[])
+    }
     setLoading(false)
   }, [])
 
@@ -17,5 +23,5 @@ export function useStaff() {
     load()
   }, [load])
 
-  return { staff, loading, refetch: load }
+  return { staff, loading, error, refetch: load }
 }

@@ -6,10 +6,11 @@ import type { Ingredient } from '../lib/types'
 type LowStockDashboardProps = {
   ingredients: Ingredient[]
   loading: boolean
+  error: string | null
   onChanged: () => void
 }
 
-export function LowStockDashboard({ ingredients, loading, onChanged }: LowStockDashboardProps) {
+export function LowStockDashboard({ ingredients, loading, error, onChanged }: LowStockDashboardProps) {
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
 
   const outOfStock = useMemo(
@@ -40,11 +41,20 @@ export function LowStockDashboard({ ingredients, loading, onChanged }: LowStockD
 
       {loading && <div className="menu-grid-status">Loading…</div>}
 
-      {!loading && totalLow === 0 && (
+      {!loading && error && (
+        <div className="menu-grid-status menu-grid-error">
+          Failed to load ingredients: {error}
+          <button type="button" className="menu-manager-add" onClick={onChanged}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && totalLow === 0 && (
         <div className="menu-grid-status">Everything's stocked up.</div>
       )}
 
-      {!loading && outOfStock.length > 0 && (
+      {!loading && !error && outOfStock.length > 0 && (
         <>
           <h3 className="low-stock-section-title low-stock-out">Out of stock ({outOfStock.length})</h3>
           <table className="menu-manager-table">
@@ -76,7 +86,7 @@ export function LowStockDashboard({ ingredients, loading, onChanged }: LowStockD
         </>
       )}
 
-      {!loading && runningLow.length > 0 && (
+      {!loading && !error && runningLow.length > 0 && (
         <>
           <h3 className="low-stock-section-title low-stock-warning">Running low ({runningLow.length})</h3>
           <table className="menu-manager-table">

@@ -5,11 +5,17 @@ import type { Table } from '../lib/types'
 export function useTables() {
   const [tables, setTables] = useState<Table[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('tables').select('*').order('sort_order', { ascending: true })
-    setTables((data as Table[]) ?? [])
+    const { data, error } = await supabase.from('tables').select('*').order('sort_order', { ascending: true })
+    if (error) {
+      setError(error.message)
+    } else {
+      setError(null)
+      setTables(data as Table[])
+    }
     setLoading(false)
   }, [])
 
@@ -17,5 +23,5 @@ export function useTables() {
     load()
   }, [load])
 
-  return { tables, loading, refetch: load }
+  return { tables, loading, error, refetch: load }
 }

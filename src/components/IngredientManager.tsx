@@ -9,10 +9,11 @@ type Filter = 'all' | 'flavour' | 'container' | 'low'
 type IngredientManagerProps = {
   ingredients: Ingredient[]
   loading: boolean
+  error: string | null
   onChanged: () => void
 }
 
-export function IngredientManager({ ingredients, loading, onChanged }: IngredientManagerProps) {
+export function IngredientManager({ ingredients, loading, error, onChanged }: IngredientManagerProps) {
   const { isAdmin } = useCurrentStaff()
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [search, setSearch] = useState('')
@@ -68,11 +69,20 @@ export function IngredientManager({ ingredients, loading, onChanged }: Ingredien
 
       {loading && <div className="menu-grid-status">Loading ingredients…</div>}
 
-      {!loading && visible.length === 0 && (
+      {!loading && error && (
+        <div className="menu-grid-status menu-grid-error">
+          Failed to load ingredients: {error}
+          <button type="button" className="menu-manager-add" onClick={onChanged}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && visible.length === 0 && (
         <div className="menu-grid-status">No ingredients match.</div>
       )}
 
-      {!loading && visible.length > 0 && (
+      {!loading && !error && visible.length > 0 && (
         <table className="menu-manager-table">
           <thead>
             <tr>
