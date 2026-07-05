@@ -5,6 +5,7 @@ import { useCardLabels } from '../hooks/useCardLabels'
 import { SaleDetailsModal } from './SaleDetailsModal'
 import { paymentLabel } from '../lib/payments'
 import { todayLocalDateString, addDaysLocal, startOfWeekLocal, startOfMonthLocal, toLocalDateString } from '../lib/dates'
+import { downloadCsv, toCsv } from '../lib/csv'
 import type { Sale } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -50,6 +51,24 @@ export function SalesReport() {
 
   const activeSales = useMemo(() => sales.filter((s) => !s.voided_at), [sales])
   const voidedSales = useMemo(() => sales.filter((s) => s.voided_at), [sales])
+
+  function handleDownload() {
+    const rows = sales.map((sale) => ({
+      date: new Date(sale.ts).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
+      table: sale.table_name ?? 'Counter',
+      items: sale.items.map((i) => `${i.qty}x ${i.name}`).join('; '),
+      subtotal: sale.subtotal,
+      discount: sale.discount_amount,
+      total: sale.total,
+      payment: paymentLabel(sale.payment, card1Label, card2Label),
+      staff: sale.staff_id ? (staffNames[sale.staff_id] ?? '') : '',
+      voided: sale.voided_at ? 'yes' : 'no',
+    }))
+    downloadCsv(
+      `sales-${start}-to-${end}.csv`,
+      toCsv(rows, ['date', 'table', 'items', 'subtotal', 'discount', 'total', 'payment', 'staff', 'voided']),
+    )
+  }
 
   const stats = useMemo(() => {
     const revenue = activeSales.reduce((sum, s) => sum + s.total, 0)
@@ -147,6 +166,9 @@ export function SalesReport() {
             <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
           </div>
         )}
+        <button type="button" className="menu-manager-edit" onClick={handleDownload} disabled={sales.length === 0}>
+          Download CSV
+        </button>
       </div>
 
       {loading && <div className="menu-grid-status">Loading…</div>}

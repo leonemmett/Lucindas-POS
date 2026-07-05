@@ -23,11 +23,21 @@ type MenuGridProps = {
   error: string | null
   ingredients: Ingredient[]
   gramsPerBall: number
+  popularity: Record<string, number>
   onSelect: (item: MenuItem, flavors?: FlavorSelection[]) => void
   onRetry: () => void
 }
 
-export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall, onSelect, onRetry }: MenuGridProps) {
+export function MenuGrid({
+  menuItems,
+  loading,
+  error,
+  ingredients,
+  gramsPerBall,
+  popularity,
+  onSelect,
+  onRetry,
+}: MenuGridProps) {
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [search, setSearch] = useState('')
   const [flavorPickerItem, setFlavorPickerItem] = useState<MenuItem | null>(null)
@@ -45,9 +55,14 @@ export function MenuGrid({ menuItems, loading, error, ingredients, gramsPerBall,
       return menuItems.filter((item) => item.name.toLowerCase().includes(query))
     }
     if (activeCategory === 'All') return menuItems
-    if (activeCategory === 'Favourites') return menuItems.filter(isFavourite)
+    if (activeCategory === 'Favourites') {
+      return menuItems
+        .filter(isFavourite)
+        .slice()
+        .sort((a, b) => (popularity[b.id] ?? 0) - (popularity[a.id] ?? 0))
+    }
     return menuItems.filter((item) => item.category === activeCategory)
-  }, [menuItems, activeCategory, search])
+  }, [menuItems, activeCategory, search, popularity])
 
   function handleSelectCategory(category: string) {
     setActiveCategory(category)

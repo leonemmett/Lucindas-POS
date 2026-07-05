@@ -21,6 +21,7 @@ import { TableSelector } from './components/TableSelector'
 import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { useGramsPerBall } from './hooks/useGramsPerBall'
+import { useItemPopularity } from './hooks/useItemPopularity'
 import { isLowStock } from './lib/inventory'
 import { nextTableNumber, tableNameForNumber } from './lib/constants'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
@@ -37,6 +38,7 @@ function App() {
   const { staff, loading: staffLoading, error: staffError, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
   const gramsPerBall = useGramsPerBall()
+  const { popularity } = useItemPopularity()
 
   const lowStockCount = ingredients.filter(isLowStock).length
 
@@ -58,7 +60,8 @@ function App() {
       setView('pos')
       return
     }
-    if ((view === 'reports' || view === 'staff' || view === 'settings') && !isAdmin) setView('pos')
+    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'staff', 'settings']
+    if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
   }, [view, isAdmin, isCounterSession])
 
   // Once a staff member signs in over the counter session, the overlay has done its job.
@@ -281,32 +284,10 @@ function App() {
               </button>
               <button
                 type="button"
-                className={view === 'menu' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('menu')}
-              >
-                Menu
-              </button>
-              <button
-                type="button"
-                className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('ingredients')}
-              >
-                Ingredients
-              </button>
-              <button
-                type="button"
                 className={view === 'tables' ? 'view-tab active' : 'view-tab'}
                 onClick={() => setView('tables')}
               >
                 Tables
-              </button>
-              <button
-                type="button"
-                className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('low-stock')}
-              >
-                Low stock
-                {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
               </button>
               <button
                 type="button"
@@ -315,6 +296,34 @@ function App() {
               >
                 Cashup
               </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'menu' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('menu')}
+                >
+                  Menu
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('ingredients')}
+                >
+                  Ingredients
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
+                  onClick={() => setView('low-stock')}
+                >
+                  Low stock
+                  {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
+                </button>
+              )}
               {isAdmin && (
                 <button
                   type="button"
@@ -383,6 +392,7 @@ function App() {
               error={menuError}
               ingredients={ingredients}
               gramsPerBall={gramsPerBall}
+              popularity={popularity}
               onSelect={handleSelect}
               onRetry={refetchMenuItems}
             />
@@ -409,7 +419,7 @@ function App() {
         </>
       )}
 
-      {!isCounterSession && view === 'menu' && (
+      {!isCounterSession && view === 'menu' && isAdmin && (
         <main className="app-main">
           <MenuManager
             menuItems={menuItems}
@@ -421,7 +431,7 @@ function App() {
         </main>
       )}
 
-      {!isCounterSession && view === 'ingredients' && (
+      {!isCounterSession && view === 'ingredients' && isAdmin && (
         <main className="app-main">
           <IngredientManager
             ingredients={ingredients}
@@ -438,7 +448,7 @@ function App() {
         </main>
       )}
 
-      {!isCounterSession && view === 'low-stock' && (
+      {!isCounterSession && view === 'low-stock' && isAdmin && (
         <main className="app-main">
           <LowStockDashboard
             ingredients={ingredients}
