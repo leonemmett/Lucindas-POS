@@ -219,7 +219,7 @@ export function CashupsScreen() {
                   id="card-tips"
                   type="number"
                   step="0.01"
-                  value={cardTips}
+                  value={cardTips || ''}
                   onChange={(e) => setCardTips(Number(e.target.value))}
                 />
               </div>
@@ -229,7 +229,7 @@ export function CashupsScreen() {
                   id="petty-cash"
                   type="number"
                   step="0.01"
-                  value={pettyCash}
+                  value={pettyCash || ''}
                   onChange={(e) => setPettyCash(Number(e.target.value))}
                 />
               </div>
@@ -267,7 +267,7 @@ export function CashupsScreen() {
                   id="reader1"
                   type="number"
                   step="0.01"
-                  value={readerCard1}
+                  value={readerCard1 || ''}
                   onChange={(e) => setReaderCard1(Number(e.target.value))}
                 />
               </div>
@@ -277,7 +277,7 @@ export function CashupsScreen() {
                   id="reader2"
                   type="number"
                   step="0.01"
-                  value={readerCard2}
+                  value={readerCard2 || ''}
                   onChange={(e) => setReaderCard2(Number(e.target.value))}
                 />
               </div>

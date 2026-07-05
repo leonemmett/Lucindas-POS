@@ -26,7 +26,7 @@ export function DenominationTable({ values, onChange, qtyLabel = 'Count' }: Deno
             <input
               type="number"
               min={0}
-              value={qty}
+              value={qty || ''}
               onChange={(e) => onChange(denom, Number(e.target.value))}
             />
             <span>{currency.format(denom * qty)}</span>
