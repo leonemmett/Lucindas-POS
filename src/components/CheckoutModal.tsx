@@ -153,7 +153,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
             <button
               key={option.value}
               type="button"
-              className={payment === option.value ? 'payment-option active' : 'payment-option'}
+              className={`payment-option payment-option-${option.value}${payment === option.value ? ' active' : ''}`}
               onClick={() => setPayment(option.value)}
             >
               {option.label}
