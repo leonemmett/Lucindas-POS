@@ -1296,23 +1296,6 @@
   font-weight: 500;
 }
 
-.void-admin-auth {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.void-admin-auth-label {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text);
-}
-
 .staff-inactive td {
   color: var(--chart-muted);
 }
