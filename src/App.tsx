@@ -56,13 +56,9 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    if (isCounterSession) {
-      setView('pos')
-      return
-    }
     const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'staff', 'settings']
     if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
-  }, [view, isAdmin, isCounterSession])
+  }, [view, isAdmin])
 
   // Once a staff member signs in over the counter session, the overlay has done its job.
   useEffect(() => {
@@ -273,86 +269,84 @@ function App() {
       <img src="/logo.png" alt="" aria-hidden="true" className="app-bg-logo" />
       <header className="app-header">
         <div className="app-header-nav">
-          {!isCounterSession && (
-            <nav className="view-tabs">
+          <nav className="view-tabs">
+            <button
+              type="button"
+              className={view === 'pos' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('pos')}
+            >
+              POS
+            </button>
+            <button
+              type="button"
+              className={view === 'tables' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('tables')}
+            >
+              Tables
+            </button>
+            <button
+              type="button"
+              className={view === 'cashup' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('cashup')}
+            >
+              Cashup
+            </button>
+            {isAdmin && (
               <button
                 type="button"
-                className={view === 'pos' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('pos')}
+                className={view === 'menu' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('menu')}
               >
-                POS
+                Menu
               </button>
+            )}
+            {isAdmin && (
               <button
                 type="button"
-                className={view === 'tables' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('tables')}
+                className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('ingredients')}
               >
-                Tables
+                Ingredients
               </button>
+            )}
+            {isAdmin && (
               <button
                 type="button"
-                className={view === 'cashup' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('cashup')}
+                className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('low-stock')}
               >
-                Cashup
+                Low stock
+                {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
               </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'menu' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('menu')}
-                >
-                  Menu
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'ingredients' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('ingredients')}
-                >
-                  Ingredients
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('low-stock')}
-                >
-                  Low stock
-                  {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'reports' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('reports')}
-                >
-                  Reports
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'staff' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('staff')}
-                >
-                  Staff
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className={view === 'settings' ? 'view-tab active' : 'view-tab'}
-                  onClick={() => setView('settings')}
-                >
-                  Settings
-                </button>
-              )}
-            </nav>
-          )}
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'reports' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('reports')}
+              >
+                Reports
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'staff' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('staff')}
+              >
+                Staff
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                className={view === 'settings' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('settings')}
+              >
+                Settings
+              </button>
+            )}
+          </nav>
         </div>
         <div className="app-header-user">
           {isCounterSession ? (
@@ -419,7 +413,7 @@ function App() {
         </>
       )}
 
-      {!isCounterSession && view === 'menu' && isAdmin && (
+      {view === 'menu' && isAdmin && (
         <main className="app-main">
           <MenuManager
             menuItems={menuItems}
@@ -431,7 +425,7 @@ function App() {
         </main>
       )}
 
-      {!isCounterSession && view === 'ingredients' && isAdmin && (
+      {view === 'ingredients' && isAdmin && (
         <main className="app-main">
           <IngredientManager
             ingredients={ingredients}
@@ -442,13 +436,13 @@ function App() {
         </main>
       )}
 
-      {!isCounterSession && view === 'tables' && (
+      {view === 'tables' && (
         <main className="app-main">
           <TableManager tables={tables} loading={tablesLoading} error={tablesError} onChanged={refetchTables} />
         </main>
       )}
 
-      {!isCounterSession && view === 'low-stock' && isAdmin && (
+      {view === 'low-stock' && isAdmin && (
         <main className="app-main">
           <LowStockDashboard
             ingredients={ingredients}
@@ -459,25 +453,25 @@ function App() {
         </main>
       )}
 
-      {!isCounterSession && view === 'cashup' && (
+      {view === 'cashup' && (
         <main className="app-main">
           <CashupsScreen />
         </main>
       )}
 
-      {!isCounterSession && view === 'reports' && isAdmin && (
+      {view === 'reports' && isAdmin && (
         <main className="app-main">
           <SalesReport />
         </main>
       )}
 
-      {!isCounterSession && view === 'staff' && isAdmin && (
+      {view === 'staff' && isAdmin && (
         <main className="app-main">
           <StaffManager staff={staff} loading={staffLoading} error={staffError} onChanged={refetchStaff} />
         </main>
       )}
 
-      {!isCounterSession && view === 'settings' && isAdmin && (
+      {view === 'settings' && isAdmin && (
         <main className="app-main">
           <SettingsScreen
             receiptsEnabled={receiptsEnabled}
