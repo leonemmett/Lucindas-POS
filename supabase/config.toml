@@ -429,3 +429,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/push-menu-to-sheet/deno.json"
 entrypoint = "./functions/push-menu-to-sheet/index.ts"
+
+[functions.pull-menu-from-sheet]
+enabled = true
+verify_jwt = false
+import_map = "./functions/pull-menu-from-sheet/deno.json"
+entrypoint = "./functions/pull-menu-from-sheet/index.ts"
