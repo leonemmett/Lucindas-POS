@@ -6,7 +6,7 @@ import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { useFloatComposition } from '../hooks/useFloatComposition'
 import { useSalesTotalsForDate } from '../hooks/useSalesTotalsForDate'
 import { MXN_DENOMINATIONS, sumDenominations } from '../lib/denominations'
-import { todayLocalDateString } from '../lib/dates'
+import { addDaysLocal, todayLocalDateString } from '../lib/dates'
 import { DenominationTable } from './DenominationTable'
 import { FloatEditor } from './FloatEditor'
 import type { Cashup, ReaderCounts } from '../lib/types'
@@ -23,7 +23,7 @@ function BreakdownLine({ label, value }: { label: string; value: number }) {
 }
 
 export function CashupsScreen() {
-  const [date, setDate] = useState(todayLocalDateString())
+  const [date, setDate] = useState(addDaysLocal(todayLocalDateString(), -1))
   const [existing, setExisting] = useState<Cashup | null>(null)
   const [loadingExisting, setLoadingExisting] = useState(true)
 
