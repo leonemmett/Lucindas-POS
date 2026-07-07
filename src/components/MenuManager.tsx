@@ -6,7 +6,7 @@ import type { Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
-const MENU_ITEM_CSV_COLUMNS = ['name', 'category', 'price', 'ball_count', 'weight_grams', 'container', 'is_favourite']
+const MENU_ITEM_CSV_COLUMNS = ['name', 'category', 'price', 'ball_count', 'weight_grams', 'container', 'is_favourite', 'iva_rate']
 
 type ImportResult = { created: number; updated: number; errors: string[] }
 
@@ -67,11 +67,14 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
         continue
       }
 
+      const existing = byName.get(name.toLowerCase())
+
       const price = Number(row.price)
       const ballCount = Number(row.ball_count || 0)
       const weightGrams = Number(row.weight_grams || 0)
-      if (Number.isNaN(price) || Number.isNaN(ballCount) || Number.isNaN(weightGrams)) {
-        errors.push(`"${name}": price/ball_count/weight_grams must be numbers.`)
+      const ivaRate = row.iva_rate?.trim() ? Number(row.iva_rate) : (existing?.iva_rate ?? 0.16)
+      if (Number.isNaN(price) || Number.isNaN(ballCount) || Number.isNaN(weightGrams) || Number.isNaN(ivaRate)) {
+        errors.push(`"${name}": price/ball_count/weight_grams/iva_rate must be numbers.`)
         continue
       }
 
@@ -82,7 +85,6 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
         continue
       }
 
-      const existing = byName.get(name.toLowerCase())
       const payload = {
         name,
         category: row.category?.trim() || 'Other',
@@ -91,6 +93,7 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
         weight_grams: weightGrams,
         container_id: container?.id ?? null,
         is_favourite: row.is_favourite?.trim().toLowerCase() === 'true',
+        iva_rate: ivaRate,
         recipe: existing?.recipe ?? [],
         updated_at: new Date().toISOString(),
       }
@@ -172,6 +175,7 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
               <th>Name</th>
               <th>Category</th>
               <th>Price</th>
+              <th>IVA</th>
               <th>Container</th>
               <th>Recipe</th>
               <th>Favourite</th>
@@ -184,6 +188,7 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
                 <td>{item.name}</td>
                 <td>{item.category}</td>
                 <td>{currency.format(item.price)}</td>
+                <td>{item.iva_rate === 0 ? 'Exempt' : `${(item.iva_rate * 100).toFixed(0)}%`}</td>
                 <td>{item.container_id ? ingredientName(item.container_id) : '—'}</td>
                 <td>
                   {item.recipe.length === 0

@@ -19,6 +19,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
   const [containerId, setContainerId] = useState<string>(item?.container_id ?? '')
   const [recipe, setRecipe] = useState<RecipeEntry[]>(item?.recipe ?? [])
   const [isFavourite, setIsFavourite] = useState(item?.is_favourite ?? false)
+  const [ivaRate, setIvaRate] = useState(item?.iva_rate ?? 0.16)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,6 +50,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       container_id: containerId || null,
       recipe,
       is_favourite: isFavourite,
+      iva_rate: ivaRate,
       updated_at: new Date().toISOString(),
     }
 
@@ -62,6 +64,12 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       setError(error.message)
       return
     }
+
+    // Non-blocking, same as the cashup sheet sync — a sync failure here
+    // shouldn't look like the item failed to save.
+    supabase.functions.invoke('push-menu-to-sheet', {
+      body: { name: payload.name, category: payload.category, price: payload.price, ivaRate: payload.iva_rate },
+    })
 
     onSaved()
   }
@@ -79,6 +87,11 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       setError(error.message)
       return
     }
+
+    supabase.functions.invoke('push-menu-to-sheet', {
+      method: 'DELETE',
+      body: { name: item.name },
+    })
 
     onSaved()
   }
@@ -152,6 +165,13 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
           <input type="checkbox" checked={isFavourite} onChange={(e) => setIsFavourite(e.target.checked)} />
           Show in Favourites tab
         </label>
+
+        <label htmlFor="item-iva">IVA</label>
+        <select id="item-iva" value={ivaRate} onChange={(e) => setIvaRate(Number(e.target.value))}>
+          <option value={0.16}>16% (standard)</option>
+          <option value={0.08}>8% (border zone)</option>
+          <option value={0}>Exempt (0%)</option>
+        </select>
 
         <label>Recipe</label>
         <div className="recipe-rows">

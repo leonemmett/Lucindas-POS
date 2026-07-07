@@ -19,6 +19,7 @@ export type MenuItem = {
   container_id: string | null
   recipe: RecipeEntry[]
   is_favourite: boolean
+  iva_rate: number
   updated_at: string
 }
 
