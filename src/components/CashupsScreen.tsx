@@ -40,6 +40,7 @@ export function CashupsScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sheetSyncError, setSheetSyncError] = useState<string | null>(null)
 
   const { card1Label, card2Label } = useCardLabels()
   const { staffName: defaultStaffName } = useCurrentStaff()
@@ -110,6 +111,7 @@ export function CashupsScreen() {
   async function handleSave() {
     setSubmitting(true)
     setError(null)
+    setSheetSyncError(null)
 
     const payload = {
       date,
@@ -152,6 +154,32 @@ export function CashupsScreen() {
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
     refetchHistory()
+
+    // The cashup itself is already saved at this point — a sheet sync
+    // failure shouldn't look like the cashup failed to save, so it gets its
+    // own separate, non-blocking error rather than reusing `error` above.
+    const { error: syncError } = await supabase.functions.invoke('push-cashup-to-sheet', {
+      body: {
+        date,
+        staffName: staffName.trim() || null,
+        totalCashInTill,
+        floatTotal,
+        cardTips,
+        pettyCash,
+        cashSubtotal: subtotal,
+        systemCash: systemTotals.cash,
+        cashDifference,
+        card1: card1Effective,
+        card1Overridden: card1Override !== null,
+        card2: card2Effective,
+        card2Overridden: card2Override !== null,
+        transfer: systemTotals.transfer,
+        grandCounted,
+        grandSystem,
+        grandDifference,
+      },
+    })
+    if (syncError) setSheetSyncError(syncError.message)
   }
 
   function handleEditPast(pastDate: string) {
@@ -304,6 +332,7 @@ export function CashupsScreen() {
 
       {error && <p className="checkout-error">{error}</p>}
       {saved && <p className="cashup-saved">Cashup saved for {date}.</p>}
+      {sheetSyncError && <p className="checkout-error">Saved, but the Google Sheet sync failed: {sheetSyncError}</p>}
 
       <div className="cashup-actions">
         <button type="button" className="checkout-confirm" onClick={handleSave} disabled={submitting || loading}>
