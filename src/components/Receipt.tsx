@@ -12,6 +12,8 @@ type ReceiptProps = {
   discountAmount: number
   total: number
   paymentLabel: string
+  cashGiven?: number
+  changeDue?: number
 }
 
 export function Receipt({
@@ -24,6 +26,8 @@ export function Receipt({
   discountAmount,
   total,
   paymentLabel,
+  cashGiven,
+  changeDue,
 }: ReceiptProps) {
   return (
     <div className="receipt-print-area">
@@ -74,6 +78,18 @@ export function Receipt({
           <span>Payment</span>
           <span>{paymentLabel}</span>
         </div>
+        {cashGiven !== undefined && (
+          <div className="receipt-line">
+            <span>Cash received</span>
+            <span>{currency.format(cashGiven)}</span>
+          </div>
+        )}
+        {changeDue !== undefined && (
+          <div className="receipt-line">
+            <span>Change</span>
+            <span>{currency.format(Math.max(changeDue, 0))}</span>
+          </div>
+        )}
 
         <div className="receipt-divider" />
 

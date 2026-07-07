@@ -25,6 +25,8 @@ type CompletedSale = {
   discountAmount: number
   total: number
   payment: PaymentMethod
+  cashGiven: number
+  changeDue: number
 }
 
 export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onClose, onComplete }: CheckoutModalProps) {
@@ -35,12 +37,20 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const [discountPercent, setDiscountPercent] = useState(0)
   const [customers, setCustomers] = useState(1)
   const [note, setNote] = useState('')
+  const [cashGiven, setCashGiven] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null)
 
   const discountAmount = useMemo(() => subtotal * (discountPercent / 100), [subtotal, discountPercent])
   const total = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount])
+  const changeDue = cashGiven - total
+  const cashInsufficient = payment === 'cash' && cashGiven < total
+
+  function handlePaymentChange(value: PaymentMethod) {
+    setPayment(value)
+    if (value !== 'cash') setCashGiven(0)
+  }
 
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
     { value: 'cash', label: 'Cash' },
@@ -86,7 +96,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
       return
     }
 
-    setCompletedSale({ ts: new Date(), items, subtotal, discountPercent, discountAmount, total, payment })
+    setCompletedSale({ ts: new Date(), items, subtotal, discountPercent, discountAmount, total, payment, cashGiven, changeDue })
   }
 
   if (completedSale) {
@@ -103,6 +113,8 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
             discountAmount={completedSale.discountAmount}
             total={completedSale.total}
             paymentLabel={paymentLabel(completedSale.payment, card1Label, card2Label)}
+            cashGiven={completedSale.payment === 'cash' ? completedSale.cashGiven : undefined}
+            changeDue={completedSale.payment === 'cash' ? completedSale.changeDue : undefined}
           />
           <div className="checkout-actions no-print">
             <button type="button" className="checkout-cancel" onClick={() => window.print()}>
@@ -154,12 +166,32 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
               key={option.value}
               type="button"
               className={`payment-option payment-option-${option.value}${payment === option.value ? ' active' : ''}`}
-              onClick={() => setPayment(option.value)}
+              onClick={() => handlePaymentChange(option.value)}
             >
               {option.label}
             </button>
           ))}
         </div>
+
+        {payment === 'cash' && (
+          <div className="checkout-summary change-calculator">
+            <label htmlFor="cash-given">Cash received</label>
+            <input
+              id="cash-given"
+              type="number"
+              step="0.01"
+              min={0}
+              value={cashGiven || ''}
+              onChange={(e) => setCashGiven(Math.max(0, Number(e.target.value)))}
+            />
+            <div className="checkout-row checkout-total">
+              <span>{changeDue < 0 ? 'Still owing' : 'Change due'}</span>
+              <span className={changeDue < 0 ? 'cashup-diff-negative' : ''}>
+                {currency.format(Math.abs(changeDue))}
+              </span>
+            </div>
+          </div>
+        )}
 
         <label htmlFor="customers">Customers</label>
         <div className="customers-stepper">
@@ -181,7 +213,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
           <button type="button" className="checkout-cancel" onClick={onClose} disabled={submitting}>
             Cancel
           </button>
-          <button type="button" className="checkout-confirm" onClick={handleConfirm} disabled={submitting}>
+          <button type="button" className="checkout-confirm" onClick={handleConfirm} disabled={submitting || cashInsufficient}>
             {submitting ? 'Charging…' : `Charge ${currency.format(total)}`}
           </button>
         </div>
