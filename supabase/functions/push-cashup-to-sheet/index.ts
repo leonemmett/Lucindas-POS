@@ -177,6 +177,34 @@ async function appendRow(
   if (!res.ok) throw new Error(`Failed to append row: ${await res.text()}`);
 }
 
+async function deleteRowByDate(
+  spreadsheetId: string,
+  sheetTitle: string,
+  gid: number,
+  date: string,
+  accessToken: string,
+) {
+  const getRes = await fetch(
+    `${SHEETS_API}/${spreadsheetId}/values/${encodeURIComponent(`${sheetTitle}!A:A`)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!getRes.ok) throw new Error(`Failed to read existing rows: ${await getRes.text()}`);
+  const values: string[][] = (await getRes.json()).values ?? [];
+  const rowIndex = values.findIndex((r) => r[0] === date);
+  if (rowIndex < 0) return; // already gone — deleting is idempotent
+
+  const res = await fetch(`${SHEETS_API}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [
+        { deleteDimension: { range: { sheetId: gid, dimension: "ROWS", startIndex: rowIndex, endIndex: rowIndex + 1 } } },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to delete row: ${await res.text()}`);
+}
+
 async function upsertRow(
   spreadsheetId: string,
   sheetTitle: string,
@@ -222,7 +250,7 @@ async function upsertRow(
 
 export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (req) => {
-    if (req.method !== "POST") {
+    if (req.method !== "POST" && req.method !== "DELETE") {
       return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
     }
 
@@ -234,20 +262,24 @@ export default {
       return Response.json({ ok: false, error: "Sheet sync is not configured" }, { status: 500 });
     }
 
-    let cashup: CashupRow;
+    let body: { date?: string } & Partial<CashupRow>;
     try {
-      cashup = await req.json();
+      body = await req.json();
     } catch {
       return Response.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
     }
-    if (!cashup?.date) {
+    if (!body?.date) {
       return Response.json({ ok: false, error: "Missing date" }, { status: 400 });
     }
 
     try {
       const accessToken = await getAccessToken(clientEmail, privateKey);
       const sheetTitle = await getSheetTitle(spreadsheetId, gid, accessToken);
-      await upsertRow(spreadsheetId, sheetTitle, toRow(cashup), accessToken);
+      if (req.method === "DELETE") {
+        await deleteRowByDate(spreadsheetId, sheetTitle, gid, body.date, accessToken);
+      } else {
+        await upsertRow(spreadsheetId, sheetTitle, toRow(body as CashupRow), accessToken);
+      }
       return Response.json({ ok: true });
     } catch (err) {
       return Response.json({ ok: false, error: String(err) }, { status: 502 });

@@ -41,6 +41,8 @@ export function CashupsScreen() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sheetSyncError, setSheetSyncError] = useState<string | null>(null)
+  const [deletingDate, setDeletingDate] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { card1Label, card2Label } = useCardLabels()
   const { staffName: defaultStaffName } = useCurrentStaff()
@@ -185,6 +187,41 @@ export function CashupsScreen() {
   function handleEditPast(pastDate: string) {
     setDate(pastDate)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleDeleteCashup(pastDate: string) {
+    if (!confirm(`Delete the cashup for ${pastDate}? This can't be undone and also removes it from the Google Sheet.`)) {
+      return
+    }
+
+    setDeletingDate(pastDate)
+    setDeleteError(null)
+
+    const { error: deleteDbError } = await supabase.from('cashups').delete().eq('date', pastDate)
+    if (deleteDbError) {
+      setDeletingDate(null)
+      setDeleteError(deleteDbError.message)
+      return
+    }
+
+    const { error: deleteSyncError } = await supabase.functions.invoke('push-cashup-to-sheet', {
+      method: 'DELETE',
+      body: { date: pastDate },
+    })
+    if (deleteSyncError) setDeleteError(`Deleted, but the Google Sheet sync failed: ${deleteSyncError.message}`)
+
+    if (pastDate === date) {
+      setExisting(null)
+      setStaffName(defaultStaffName ?? '')
+      setCounts({})
+      setCardTips(0)
+      setPettyCash(0)
+      setCard1Override(null)
+      setCard2Override(null)
+    }
+
+    setDeletingDate(null)
+    refetchHistory()
   }
 
   const loading = loadingExisting || floatLoading
@@ -343,6 +380,8 @@ export function CashupsScreen() {
       <section className="cashup-section cashup-history">
         <h3>Past cashups</h3>
 
+        {deleteError && <p className="checkout-error">{deleteError}</p>}
+
         {historyLoading && <div className="menu-grid-status">Loading…</div>}
 
         {!historyLoading && historyError && (
@@ -380,9 +419,17 @@ export function CashupsScreen() {
                   <td className={(row.grand_difference ?? 0) === 0 ? '' : (row.grand_difference ?? 0) > 0 ? 'cashup-diff-positive' : 'cashup-diff-negative'}>
                     {currency.format(row.grand_difference ?? 0)}
                   </td>
-                  <td>
+                  <td className="cashup-history-actions">
                     <button type="button" className="menu-manager-edit" onClick={() => handleEditPast(row.date)}>
                       Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-manager-delete"
+                      onClick={() => handleDeleteCashup(row.date)}
+                      disabled={deletingDate === row.date}
+                    >
+                      {deletingDate === row.date ? 'Deleting…' : 'Delete'}
                     </button>
                   </td>
                 </tr>
