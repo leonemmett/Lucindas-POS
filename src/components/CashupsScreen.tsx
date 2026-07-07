@@ -31,8 +31,10 @@ export function CashupsScreen() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [cardTips, setCardTips] = useState(0)
   const [pettyCash, setPettyCash] = useState(0)
-  const [readerCard1, setReaderCard1] = useState(0)
-  const [readerCard2, setReaderCard2] = useState(0)
+  // null = no manual correction; the reported (system) total for that card stands.
+  // A number here overrides the reported total with the true terminal printout.
+  const [card1Override, setCard1Override] = useState<number | null>(null)
+  const [card2Override, setCard2Override] = useState<number | null>(null)
 
   const [floatEditorOpen, setFloatEditorOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -61,8 +63,8 @@ export function CashupsScreen() {
       setCounts(row?.counts ?? {})
       setCardTips(row?.card_tips ?? 0)
       setPettyCash(row?.petty_cash ?? 0)
-      setReaderCard1((row?.reader_counts as ReaderCounts | null)?.card1 ?? 0)
-      setReaderCard2((row?.reader_counts as ReaderCounts | null)?.card2 ?? 0)
+      setCard1Override((row?.reader_counts as ReaderCounts | null)?.card1 ?? null)
+      setCard2Override((row?.reader_counts as ReaderCounts | null)?.card2 ?? null)
       setLoadingExisting(false)
     }
 
@@ -85,8 +87,12 @@ export function CashupsScreen() {
   const subtotal = totalCashInTill - floatTotal + cardTips + pettyCash
   const cashDifference = subtotal - systemTotals.cash
 
+  // A blank override means the reported (system) total stands as correct.
+  const card1Effective = card1Override ?? systemTotals.card1
+  const card2Effective = card2Override ?? systemTotals.card2
+
   // cardTips/pettyCash already folded into `subtotal` above — don't add them again here.
-  const grandCounted = subtotal + readerCard1 + readerCard2 + systemTotals.transfer
+  const grandCounted = subtotal + card1Effective + card2Effective + systemTotals.transfer
   const grandSystem = systemTotals.cash + systemTotals.card1 + systemTotals.card2 + systemTotals.transfer
   const grandDifference = grandCounted - grandSystem
 
@@ -100,8 +106,6 @@ export function CashupsScreen() {
     if (countedQty > floatQty) removed[denom] = countedQty - floatQty
     else if (countedQty < floatQty) added[denom] = floatQty - countedQty
   }
-  const removedValue = sumDenominations(removed)
-  const addedValue = sumDenominations(added)
 
   async function handleSave() {
     setSubmitting(true)
@@ -118,7 +122,10 @@ export function CashupsScreen() {
       total_cash_in_till: totalCashInTill,
       system_cash: systemTotals.cash,
       cash_difference: cashDifference,
-      reader_counts: { card1: readerCard1, card2: readerCard2 },
+      reader_counts: {
+        ...(card1Override !== null && { card1: card1Override }),
+        ...(card2Override !== null && { card2: card2Override }),
+      },
       system_card1: systemTotals.card1,
       system_card2: systemTotals.card2,
       system_transfer: systemTotals.transfer,
@@ -172,7 +179,7 @@ export function CashupsScreen() {
             <h3>Till count</h3>
             <label htmlFor="cashup-staff">Staff</label>
             <input id="cashup-staff" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
-            <DenominationTable values={counts} onChange={handleCountChange} />
+            <DenominationTable values={counts} onChange={handleCountChange} adjustments={{ added, removed }} />
 
             <div className="cashup-float-row">
               <span>
@@ -183,42 +190,6 @@ export function CashupsScreen() {
                 Edit float
               </button>
             </div>
-
-            {(removedValue > 0 || addedValue > 0) && (
-              <div className="till-adjustments">
-                <h4>Till adjustment</h4>
-                <div className="till-adjustments-grid">
-                  <div>
-                    <span className="till-adjustments-label">Remove from till ({currency.format(removedValue)})</span>
-                    {Object.keys(removed).length === 0 ? (
-                      <p className="cashup-hint">Nothing to remove</p>
-                    ) : (
-                      <ul>
-                        {MXN_DENOMINATIONS.filter((d) => removed[d]).map((d) => (
-                          <li key={d}>
-                            {removed[d]} × {currency.format(d)}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div>
-                    <span className="till-adjustments-label">Add to till ({currency.format(addedValue)})</span>
-                    {Object.keys(added).length === 0 ? (
-                      <p className="cashup-hint">Nothing to add</p>
-                    ) : (
-                      <ul>
-                        {MXN_DENOMINATIONS.filter((d) => added[d]).map((d) => (
-                          <li key={d}>
-                            {added[d]} × {currency.format(d)}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="menu-editor-row">
               <div>
@@ -270,38 +241,41 @@ export function CashupsScreen() {
 
             <div className="menu-editor-row">
               <div>
-                <label htmlFor="reader1">{card1Label} (reader)</label>
+                <label htmlFor="card1-override">{card1Label} override</label>
                 <input
-                  id="reader1"
+                  id="card1-override"
                   type="number"
                   step="0.01"
-                  value={readerCard1 || ''}
-                  onChange={(e) => setReaderCard1(Number(e.target.value))}
+                  placeholder={currency.format(systemTotals.card1)}
+                  value={card1Override ?? ''}
+                  onChange={(e) => setCard1Override(e.target.value === '' ? null : Number(e.target.value))}
                 />
               </div>
               <div>
-                <label htmlFor="reader2">{card2Label} (reader)</label>
+                <label htmlFor="card2-override">{card2Label} override</label>
                 <input
-                  id="reader2"
+                  id="card2-override"
                   type="number"
                   step="0.01"
-                  value={readerCard2 || ''}
-                  onChange={(e) => setReaderCard2(Number(e.target.value))}
+                  placeholder={currency.format(systemTotals.card2)}
+                  value={card2Override ?? ''}
+                  onChange={(e) => setCard2Override(e.target.value === '' ? null : Number(e.target.value))}
                 />
               </div>
             </div>
+            <p className="cashup-hint">Leave blank if the terminal printout matches the report. Enter a number to override it.</p>
 
             <div className="checkout-summary cashup-summary">
               <div className="checkout-row">
-                <span>System {card1Label}</span>
-                <span>{currency.format(systemTotals.card1)}</span>
+                <span>{card1Label}{card1Override !== null && <span className="cashup-hint"> (overridden)</span>}</span>
+                <span>{currency.format(card1Effective)}</span>
               </div>
               <div className="checkout-row">
-                <span>System {card2Label}</span>
-                <span>{currency.format(systemTotals.card2)}</span>
+                <span>{card2Label}{card2Override !== null && <span className="cashup-hint"> (overridden)</span>}</span>
+                <span>{currency.format(card2Effective)}</span>
               </div>
               <div className="checkout-row">
-                <span>System transfer</span>
+                <span>Transfer</span>
                 <span>{currency.format(systemTotals.transfer)}</span>
               </div>
             </div>
