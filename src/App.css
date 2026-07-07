@@ -558,6 +558,33 @@
   resize: vertical;
 }
 
+.discount-row {
+  display: flex;
+  gap: 8px;
+}
+
+.discount-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.staff-discount-toggle {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.staff-discount-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .payment-options {
   display: grid;
   grid-template-columns: 1fr 1fr;

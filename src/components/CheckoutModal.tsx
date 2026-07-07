@@ -52,6 +52,18 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     if (value !== 'cash') setCashGiven(0)
   }
 
+  // Staff eating gelato for free still needs to hit record_sale so stock
+  // deducts normally — a 100% discount records the consumption at $0
+  // rather than skipping the sale (and inventory tracking) entirely.
+  function handleStaffDiscount() {
+    if (discountPercent === 100) {
+      setDiscountPercent(0)
+      return
+    }
+    setDiscountPercent(100)
+    if (!note.trim()) setNote('Staff consumption')
+  }
+
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
     { value: 'cash', label: 'Cash' },
     { value: 'card1', label: card1Label },
@@ -150,14 +162,23 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
         </div>
 
         <label htmlFor="discount">Discount %</label>
-        <input
-          id="discount"
-          type="number"
-          min={0}
-          max={100}
-          value={discountPercent}
-          onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
-        />
+        <div className="discount-row">
+          <input
+            id="discount"
+            type="number"
+            min={0}
+            max={100}
+            value={discountPercent}
+            onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
+          />
+          <button
+            type="button"
+            className={`staff-discount-toggle${discountPercent === 100 ? ' active' : ''}`}
+            onClick={handleStaffDiscount}
+          >
+            Staff (100%)
+          </button>
+        </div>
 
         <label>Payment method</label>
         <div className="payment-options">
