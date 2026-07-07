@@ -62,11 +62,12 @@ export function SalesReport() {
       total: sale.total,
       payment: paymentLabel(sale.payment, card1Label, card2Label),
       staff: sale.staff_id ? (staffNames[sale.staff_id] ?? '') : '',
+      note: sale.note ?? '',
       voided: sale.voided_at ? 'yes' : 'no',
     }))
     downloadCsv(
       `sales-${start}-to-${end}.csv`,
-      toCsv(rows, ['date', 'table', 'items', 'subtotal', 'discount', 'total', 'payment', 'staff', 'voided']),
+      toCsv(rows, ['date', 'table', 'items', 'subtotal', 'discount', 'total', 'payment', 'staff', 'note', 'voided']),
     )
   }
 
@@ -108,6 +109,26 @@ export function SalesReport() {
       }
     }
     return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 10)
+  }, [activeSales])
+
+  // 100%-discount sales are how staff register free gelato consumption (see
+  // CheckoutModal's "Staff (100%)" toggle) — record_sale still deducts stock
+  // for these normally, but they contribute $0 revenue, so they need their
+  // own breakdown here rather than being folded into "Top items" by revenue.
+  const staffConsumption = useMemo(() => {
+    const staffSales = activeSales.filter((s) => s.discount_percent === 100)
+    const map = new Map<string, { name: string; qty: number }>()
+    for (const s of staffSales) {
+      for (const item of s.items) {
+        const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0 }
+        prev.qty += item.qty
+        map.set(item.menu_item_id, prev)
+      }
+    }
+    const items = [...map.values()].sort((a, b) => b.qty - a.qty)
+    const totalQty = items.reduce((sum, i) => sum + i.qty, 0)
+    const value = staffSales.reduce((sum, s) => sum + s.subtotal, 0)
+    return { items, totalQty, value, salesCount: staffSales.length }
   }, [activeSales])
 
   const byStaff = useMemo(() => {
@@ -192,6 +213,10 @@ export function SalesReport() {
             <div className="stat-tile">
               <span className="stat-tile-label">Discounts given</span>
               <span className="stat-tile-value">{currency.format(stats.discount)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Staff consumption ({staffConsumption.totalQty} item{staffConsumption.totalQty === 1 ? '' : 's'})</span>
+              <span className="stat-tile-value">{currency.format(staffConsumption.value)}</span>
             </div>
             <div className="stat-tile">
               <span className="stat-tile-label">Voided ({stats.refundedCount})</span>
@@ -285,6 +310,31 @@ export function SalesReport() {
               </table>
             </section>
           </div>
+
+          {staffConsumption.items.length > 0 && (
+            <section className="cashup-section">
+              <h3>Staff consumption by item</h3>
+              <div className="chart-hbars">
+                {staffConsumption.items.map((item) => (
+                  <div className="chart-hbar-row" key={item.name}>
+                    <span className="chart-hbar-label">{item.name}</span>
+                    <div className="chart-hbar-track">
+                      <div
+                        className="chart-hbar-fill"
+                        style={{
+                          width: `${(item.qty / staffConsumption.items[0].qty) * 100}%`,
+                          background: 'var(--chart-sequential)',
+                        }}
+                      />
+                    </div>
+                    <span className="chart-hbar-value">
+                      {item.qty} item{item.qty === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="cashup-section report-sales-list">
             <h3>Sales</h3>
