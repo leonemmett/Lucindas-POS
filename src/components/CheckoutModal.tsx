@@ -81,6 +81,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
       price: line.menuItem.price,
       qty: line.qty,
       flavors: line.flavors,
+      iva_rate: line.menuItem.iva_rate,
     }))
 
     const { error } = await supabase.rpc('record_sale', {

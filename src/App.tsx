@@ -461,7 +461,7 @@ function App() {
 
       {view === 'reports' && isAdmin && (
         <main className="app-main">
-          <SalesReport />
+          <SalesReport menuItems={menuItems} />
         </main>
       )}
 

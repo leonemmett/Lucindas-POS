@@ -6,7 +6,7 @@ import { SaleDetailsModal } from './SaleDetailsModal'
 import { paymentLabel } from '../lib/payments'
 import { todayLocalDateString, addDaysLocal, startOfWeekLocal, startOfMonthLocal, toLocalDateString } from '../lib/dates'
 import { downloadCsv, toCsv } from '../lib/csv'
-import type { Sale } from '../lib/types'
+import type { MenuItem, Sale } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -38,7 +38,11 @@ function presetRange(preset: Preset, custom: { start: string; end: string }) {
   }
 }
 
-export function SalesReport() {
+type SalesReportProps = {
+  menuItems: MenuItem[]
+}
+
+export function SalesReport({ menuItems }: SalesReportProps) {
   const [preset, setPreset] = useState<Preset>('today')
   const [customStart, setCustomStart] = useState(todayLocalDateString())
   const [customEnd, setCustomEnd] = useState(todayLocalDateString())
@@ -149,6 +153,72 @@ export function SalesReport() {
       }))
   }, [activeSales, staffNames])
 
+  // Menu prices are IVA-inclusive, so each line's tax is backed out of its
+  // price rather than added on top. A sale's discount is applied at the
+  // sale level, not per line, so each item's revenue is scaled down by the
+  // sale's actual total-to-subtotal ratio before splitting into base/IVA —
+  // otherwise a discounted or 100%-staff sale would overstate tax collected.
+  const ivaByDay = useMemo(() => {
+    const menuItemById = new Map(menuItems.map((m) => [m.id, m]))
+    const map = new Map<
+      string,
+      { exempt_total: number; tax_8_net: number; tax_8_iva: number; tax_16_net: number; tax_16_iva: number }
+    >()
+
+    for (const s of activeSales) {
+      const ratio = s.subtotal > 0 ? s.total / s.subtotal : 0
+      if (ratio === 0) continue
+
+      const day = toLocalDateString(s.ts)
+      const row = map.get(day) ?? { exempt_total: 0, tax_8_net: 0, tax_8_iva: 0, tax_16_net: 0, tax_16_iva: 0 }
+
+      for (const item of s.items) {
+        const rate = item.iva_rate ?? menuItemById.get(item.menu_item_id)?.iva_rate ?? 0.16
+        const gross = item.price * item.qty * ratio
+        if (rate === 0) {
+          row.exempt_total += gross
+        } else if (rate < 0.12) {
+          row.tax_8_net += gross / (1 + rate)
+          row.tax_8_iva += gross - gross / (1 + rate)
+        } else {
+          row.tax_16_net += gross / (1 + rate)
+          row.tax_16_iva += gross - gross / (1 + rate)
+        }
+      }
+
+      map.set(day, row)
+    }
+
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, v]) => ({
+        date,
+        ...v,
+        total: v.exempt_total + v.tax_8_net + v.tax_8_iva + v.tax_16_net + v.tax_16_iva,
+      }))
+  }, [activeSales, menuItems])
+
+  const ivaTotals = useMemo(
+    () =>
+      ivaByDay.reduce(
+        (acc, d) => ({
+          exempt: acc.exempt + d.exempt_total,
+          taxableNet: acc.taxableNet + d.tax_8_net + d.tax_16_net,
+          ivaCollected: acc.ivaCollected + d.tax_8_iva + d.tax_16_iva,
+          total: acc.total + d.total,
+        }),
+        { exempt: 0, taxableNet: 0, ivaCollected: 0, total: 0 },
+      ),
+    [ivaByDay],
+  )
+
+  function handleDownloadIva() {
+    downloadCsv(
+      `iva-report-${start}-to-${end}.csv`,
+      toCsv(ivaByDay, ['date', 'exempt_total', 'tax_8_net', 'tax_8_iva', 'tax_16_net', 'tax_16_iva', 'total']),
+    )
+  }
+
   const maxDayRevenue = Math.max(1, ...byDay.map((d) => d.revenue))
   const maxPayment = Math.max(1, ...Object.values(byPayment))
   const maxItemRevenue = Math.max(1, ...topItems.map((i) => i.revenue))
@@ -189,6 +259,9 @@ export function SalesReport() {
         )}
         <button type="button" className="menu-manager-edit" onClick={handleDownload} disabled={sales.length === 0}>
           Download CSV
+        </button>
+        <button type="button" className="menu-manager-edit" onClick={handleDownloadIva} disabled={ivaByDay.length === 0}>
+          Download IVA report
         </button>
       </div>
 
@@ -335,6 +408,57 @@ export function SalesReport() {
               </div>
             </section>
           )}
+
+          <section className="cashup-section">
+            <h3>IVA breakdown</h3>
+            <div className="stat-tiles">
+              <div className="stat-tile">
+                <span className="stat-tile-label">IVA exempt revenue</span>
+                <span className="stat-tile-value">{currency.format(ivaTotals.exempt)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Taxable revenue (net)</span>
+                <span className="stat-tile-value">{currency.format(ivaTotals.taxableNet)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">IVA collected</span>
+                <span className="stat-tile-value">{currency.format(ivaTotals.ivaCollected)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Total revenue</span>
+                <span className="stat-tile-value">{currency.format(ivaTotals.total)}</span>
+              </div>
+            </div>
+
+            {ivaByDay.length > 0 && (
+              <table className="menu-manager-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Exempt</th>
+                    <th>8% net</th>
+                    <th>8% IVA</th>
+                    <th>16% net</th>
+                    <th>16% IVA</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ivaByDay.map((row) => (
+                    <tr key={row.date}>
+                      <td>{row.date}</td>
+                      <td>{currency.format(row.exempt_total)}</td>
+                      <td>{currency.format(row.tax_8_net)}</td>
+                      <td>{currency.format(row.tax_8_iva)}</td>
+                      <td>{currency.format(row.tax_16_net)}</td>
+                      <td>{currency.format(row.tax_16_iva)}</td>
+                      <td>{currency.format(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
 
           <section className="cashup-section report-sales-list">
             <h3>Sales</h3>
