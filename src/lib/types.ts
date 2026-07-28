@@ -35,6 +35,17 @@ export type Ingredient = {
   updated_at: string
 }
 
+export type IngredientBatch = {
+  id: string
+  ingredient_id: string
+  weight_grams: number
+  expiry_date: string
+  received_at: string
+  emptied_at: string | null
+  note: string | null
+  created_at: string
+}
+
 export type FlavorSelection = {
   ingredient_id: string
   name: string

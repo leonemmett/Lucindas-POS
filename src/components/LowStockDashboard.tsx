@@ -1,17 +1,43 @@
 import { useMemo, useState } from 'react'
 import { IngredientEditor } from './IngredientEditor'
+import { IngredientBatchEditor } from './IngredientBatchEditor'
 import { isLowStock } from '../lib/inventory'
-import type { Ingredient } from '../lib/types'
+import type { Ingredient, IngredientBatch } from '../lib/types'
 
 type LowStockDashboardProps = {
   ingredients: Ingredient[]
+  batches: IngredientBatch[]
   loading: boolean
   error: string | null
   onChanged: () => void
+  onBatchesChanged: () => void
 }
 
-export function LowStockDashboard({ ingredients, loading, error, onChanged }: LowStockDashboardProps) {
+export function LowStockDashboard({
+  ingredients,
+  batches,
+  loading,
+  error,
+  onChanged,
+  onBatchesChanged,
+}: LowStockDashboardProps) {
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
+  const [restockingBatchFor, setRestockingBatchFor] = useState<Ingredient | null>(null)
+
+  const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
+
+  function handleRestock(ing: Ingredient) {
+    if (batchTrackedIds.has(ing.id)) {
+      setRestockingBatchFor(ing)
+    } else {
+      setEditingIngredient(ing)
+    }
+  }
+
+  function handleBatchSaved() {
+    setRestockingBatchFor(null)
+    onBatchesChanged()
+  }
 
   const outOfStock = useMemo(
     () =>
@@ -75,7 +101,7 @@ export function LowStockDashboard({ ingredients, loading, error, onChanged }: Lo
                   <td>{ing.low_threshold}</td>
                   <td>{ing.unit}</td>
                   <td>
-                    <button type="button" className="menu-manager-edit" onClick={() => setEditingIngredient(ing)}>
+                    <button type="button" className="menu-manager-edit" onClick={() => handleRestock(ing)}>
                       Restock
                     </button>
                   </td>
@@ -107,7 +133,7 @@ export function LowStockDashboard({ ingredients, loading, error, onChanged }: Lo
                   <td>{ing.low_threshold}</td>
                   <td>{ing.unit}</td>
                   <td>
-                    <button type="button" className="menu-manager-edit" onClick={() => setEditingIngredient(ing)}>
+                    <button type="button" className="menu-manager-edit" onClick={() => handleRestock(ing)}>
                       Restock
                     </button>
                   </td>
@@ -121,8 +147,21 @@ export function LowStockDashboard({ ingredients, loading, error, onChanged }: Lo
       {editingIngredient !== undefined && (
         <IngredientEditor
           ingredient={editingIngredient}
+          ingredients={ingredients}
+          batches={batches}
           onClose={() => setEditingIngredient(undefined)}
           onSaved={handleSaved}
+          onBatchesChanged={onBatchesChanged}
+        />
+      )}
+
+      {restockingBatchFor && (
+        <IngredientBatchEditor
+          batch={null}
+          ingredients={ingredients}
+          initialIngredientId={restockingBatchFor.id}
+          onClose={() => setRestockingBatchFor(null)}
+          onSaved={handleBatchSaved}
         />
       )}
     </div>

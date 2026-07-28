@@ -1,15 +1,26 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
-import type { Ingredient } from '../lib/types'
+import { IngredientBatchEditor } from './IngredientBatchEditor'
+import type { Ingredient, IngredientBatch } from '../lib/types'
 
 type IngredientEditorProps = {
   ingredient: Ingredient | null
+  ingredients: Ingredient[]
+  batches: IngredientBatch[]
   onClose: () => void
   onSaved: () => void
+  onBatchesChanged: () => void
 }
 
-export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEditorProps) {
+export function IngredientEditor({
+  ingredient,
+  ingredients,
+  batches,
+  onClose,
+  onSaved,
+  onBatchesChanged,
+}: IngredientEditorProps) {
   const { isAdmin } = useCurrentStaff()
   const [name, setName] = useState(ingredient?.name ?? '')
   const [unit, setUnit] = useState(ingredient?.unit ?? '')
@@ -20,6 +31,16 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
   const [isContainer, setIsContainer] = useState(ingredient?.is_container ?? false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editingBatch, setEditingBatch] = useState<IngredientBatch | null | undefined>(undefined)
+
+  const ownBatches = ingredient ? batches.filter((b) => b.ingredient_id === ingredient.id) : []
+  const isBatchTracked = ownBatches.length > 0
+  const activeBatches = ownBatches.filter((b) => !b.emptied_at)
+
+  function handleBatchSaved() {
+    setEditingBatch(undefined)
+    onBatchesChanged()
+  }
 
   async function handleSave() {
     setSubmitting(true)
@@ -28,7 +49,11 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
     const payload = {
       name: name.trim(),
       unit: unit.trim(),
-      stock,
+      // Batch-tracked ingredients have their stock owned by the
+      // ingredient_batches sync trigger — sending a stale client-side value
+      // here would just get silently overwritten by the next batch change,
+      // so leave it out of the write entirely rather than fight the trigger.
+      ...(isBatchTracked ? {} : { stock }),
       low_threshold: lowThreshold,
       cost_per_unit: costPerUnit,
       is_flavour: isFlavour,
@@ -62,7 +87,7 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
     if (error) {
       setError(
         error.code === '23503'
-          ? 'This ingredient is used as a container on a menu item and can’t be deleted while that’s the case.'
+          ? 'This ingredient is still referenced elsewhere (a menu item container, or a batch/sale record) and can’t be deleted while that’s the case.'
           : error.message,
       )
       return
@@ -85,13 +110,19 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
         <div className="menu-editor-row">
           <div>
             <label htmlFor="ing-stock">Stock</label>
-            <input
-              id="ing-stock"
-              type="number"
-              step="0.01"
-              value={stock}
-              onChange={(e) => setStock(Number(e.target.value))}
-            />
+            {isBatchTracked ? (
+              <p id="ing-stock" className="menu-grid-status">
+                {ingredient?.stock ?? 0} across {activeBatches.length} container{activeBatches.length === 1 ? '' : 's'}
+              </p>
+            ) : (
+              <input
+                id="ing-stock"
+                type="number"
+                step="0.01"
+                value={stock}
+                onChange={(e) => setStock(Number(e.target.value))}
+              />
+            )}
           </div>
           <div>
             <label htmlFor="ing-low">Low threshold</label>
@@ -128,6 +159,45 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
           Container
         </label>
 
+        {ingredient && (
+          <div className="ingredient-batches-section">
+            <div className="menu-manager-header">
+              <h3>Containers</h3>
+              <button type="button" className="menu-manager-edit" onClick={() => setEditingBatch(null)}>
+                + Add container
+              </button>
+            </div>
+            {activeBatches.length === 0 && <p className="menu-grid-status">No containers logged yet.</p>}
+            {activeBatches.length > 0 && (
+              <table className="menu-manager-table">
+                <thead>
+                  <tr>
+                    <th>Weight (g)</th>
+                    <th>Expiry date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBatches
+                    .slice()
+                    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
+                    .map((b) => (
+                      <tr key={b.id}>
+                        <td>{b.weight_grams}</td>
+                        <td>{b.expiry_date}</td>
+                        <td>
+                          <button type="button" className="menu-manager-edit" onClick={() => setEditingBatch(b)}>
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
         {error && <p className="checkout-error">{error}</p>}
 
         <div className="checkout-actions">
@@ -149,6 +219,16 @@ export function IngredientEditor({ ingredient, onClose, onSaved }: IngredientEdi
           </button>
         </div>
       </div>
+
+      {editingBatch !== undefined && ingredient && (
+        <IngredientBatchEditor
+          batch={editingBatch}
+          ingredients={ingredients}
+          initialIngredientId={ingredient.id}
+          onClose={() => setEditingBatch(undefined)}
+          onSaved={handleBatchSaved}
+        />
+      )}
     </div>
   )
 }

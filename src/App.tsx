@@ -3,6 +3,7 @@ import { supabase } from './lib/supabaseClient'
 import { useAuth } from './lib/AuthContext'
 import { useMenuItems } from './hooks/useMenuItems'
 import { useIngredients } from './hooks/useIngredients'
+import { useIngredientBatches } from './hooks/useIngredientBatches'
 import { useTables } from './hooks/useTables'
 import { useCurrentStaff } from './hooks/useCurrentStaff'
 import { Login } from './components/Login'
@@ -11,6 +12,7 @@ import { MenuManager } from './components/MenuManager'
 import { IngredientManager } from './components/IngredientManager'
 import { TableManager } from './components/TableManager'
 import { LowStockDashboard } from './components/LowStockDashboard'
+import { ExpiryDashboard } from './components/ExpiryDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
 import { StaffManager } from './components/StaffManager'
@@ -21,26 +23,48 @@ import { TableSelector } from './components/TableSelector'
 import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { useGramsPerBall } from './hooks/useGramsPerBall'
+import { useExpiryAlertWindowDays } from './hooks/useExpiryAlertWindowDays'
 import { useItemPopularity } from './hooks/useItemPopularity'
-import { isLowStock } from './lib/inventory'
+import { isLowStock, isExpired, isExpiringSoon } from './lib/inventory'
 import { nextTableNumber, tableNameForNumber } from './lib/constants'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
-type View = 'pos' | 'menu' | 'ingredients' | 'tables' | 'low-stock' | 'cashup' | 'reports' | 'staff' | 'settings'
+type View =
+  | 'pos'
+  | 'menu'
+  | 'ingredients'
+  | 'tables'
+  | 'low-stock'
+  | 'expiry'
+  | 'cashup'
+  | 'reports'
+  | 'staff'
+  | 'settings'
 
 function App() {
   const { session, loading, isCounterSession, signOut } = useAuth()
   const { menuItems, loading: menuLoading, error: menuError, refetch: refetchMenuItems } = useMenuItems()
   const { ingredients, loading: ingredientsLoading, error: ingredientsError, refetch: refetchIngredients } = useIngredients()
+  const {
+    batches,
+    loading: batchesLoading,
+    error: batchesError,
+    refetch: refetchIngredientBatches,
+  } = useIngredientBatches()
   const { tables, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useTables()
   const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
   const { staff, loading: staffLoading, error: staffError, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
   const gramsPerBall = useGramsPerBall()
+  const expiryAlertWindowDays = useExpiryAlertWindowDays()
   const { popularity } = useItemPopularity()
 
   const lowStockCount = ingredients.filter(isLowStock).length
+  const activeBatches = batches.filter((b) => !b.emptied_at)
+  const expiryAlertCount = activeBatches.filter(
+    (b) => isExpired(b) || isExpiringSoon(b, expiryAlertWindowDays),
+  ).length
 
   const [view, setView] = useState<View>('pos')
   const [lines, setLines] = useState<TicketLine[]>([])
@@ -56,7 +80,7 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'staff', 'settings']
+    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'expiry', 'reports', 'staff', 'settings']
     if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
   }, [view, isAdmin])
 
@@ -74,6 +98,7 @@ function App() {
     if (!sessionUserId) return
     refetchMenuItems()
     refetchIngredients()
+    refetchIngredientBatches()
     refetchTables()
     refetchStaff()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -322,6 +347,16 @@ function App() {
             {isAdmin && (
               <button
                 type="button"
+                className={view === 'expiry' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('expiry')}
+              >
+                Expiry
+                {expiryAlertCount > 0 && <span className="nav-badge">{expiryAlertCount}</span>}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
                 className={view === 'reports' ? 'view-tab active' : 'view-tab'}
                 onClick={() => setView('reports')}
               >
@@ -429,9 +464,14 @@ function App() {
         <main className="app-main">
           <IngredientManager
             ingredients={ingredients}
+            batches={batches}
             loading={ingredientsLoading}
             error={ingredientsError}
             onChanged={refetchIngredients}
+            onBatchesChanged={() => {
+              refetchIngredientBatches()
+              refetchIngredients()
+            }}
           />
         </main>
       )}
@@ -446,9 +486,29 @@ function App() {
         <main className="app-main">
           <LowStockDashboard
             ingredients={ingredients}
+            batches={batches}
             loading={ingredientsLoading}
             error={ingredientsError}
             onChanged={refetchIngredients}
+            onBatchesChanged={() => {
+              refetchIngredientBatches()
+              refetchIngredients()
+            }}
+          />
+        </main>
+      )}
+
+      {view === 'expiry' && isAdmin && (
+        <main className="app-main">
+          <ExpiryDashboard
+            batches={batches}
+            ingredients={ingredients}
+            loading={batchesLoading}
+            error={batchesError}
+            onChanged={() => {
+              refetchIngredientBatches()
+              refetchIngredients()
+            }}
           />
         </main>
       )}

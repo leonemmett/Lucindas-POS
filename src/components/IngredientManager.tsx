@@ -4,7 +4,7 @@ import { IngredientEditor } from './IngredientEditor'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { isLowStock } from '../lib/inventory'
 import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
-import type { Ingredient } from '../lib/types'
+import type { Ingredient, IngredientBatch } from '../lib/types'
 
 type Filter = 'all' | 'flavour' | 'container' | 'low'
 
@@ -14,12 +14,21 @@ type ImportResult = { created: number; updated: number; errors: string[] }
 
 type IngredientManagerProps = {
   ingredients: Ingredient[]
+  batches: IngredientBatch[]
   loading: boolean
   error: string | null
   onChanged: () => void
+  onBatchesChanged: () => void
 }
 
-export function IngredientManager({ ingredients, loading, error, onChanged }: IngredientManagerProps) {
+export function IngredientManager({
+  ingredients,
+  batches,
+  loading,
+  error,
+  onChanged,
+  onBatchesChanged,
+}: IngredientManagerProps) {
   const { isAdmin } = useCurrentStaff()
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [search, setSearch] = useState('')
@@ -55,6 +64,7 @@ export function IngredientManager({ ingredients, loading, error, onChanged }: In
 
     const rows = parseCsv(await file.text())
     const byName = new Map(ingredients.map((ing) => [ing.name.toLowerCase(), ing]))
+    const batchTrackedIds = new Set(batches.map((b) => b.ingredient_id))
     let created = 0
     let updated = 0
     const errors: string[] = []
@@ -74,17 +84,23 @@ export function IngredientManager({ ingredients, loading, error, onChanged }: In
         continue
       }
 
+      const existing = byName.get(name.toLowerCase())
+      // Batch-tracked ingredients have their stock owned by the
+      // ingredient_batches sync trigger — writing a plain CSV number here
+      // would just get silently overwritten by the next batch change, so
+      // skip that field for those rows and use the Expiry tab instead.
+      const skipStock = existing && batchTrackedIds.has(existing.id)
+
       const payload = {
         name,
         unit: row.unit?.trim() || 'unit',
-        stock,
+        ...(skipStock ? {} : { stock }),
         low_threshold: lowThreshold,
         cost_per_unit: costPerUnit,
         is_flavour: row.is_flavour?.trim().toLowerCase() === 'true',
         is_container: row.is_container?.trim().toLowerCase() === 'true',
       }
 
-      const existing = byName.get(name.toLowerCase())
       const { error: rowError } = existing
         ? await supabase.from('ingredients').update(payload).eq('id', existing.id)
         : await supabase.from('ingredients').insert(payload)
@@ -93,6 +109,7 @@ export function IngredientManager({ ingredients, loading, error, onChanged }: In
         errors.push(`"${name}": ${rowError.message}`)
         continue
       }
+      if (skipStock) errors.push(`"${name}": stock not updated — batch tracked, use the Expiry tab.`)
       if (existing) updated++
       else created++
     }
@@ -228,8 +245,11 @@ export function IngredientManager({ ingredients, loading, error, onChanged }: In
       {editingIngredient !== undefined && (
         <IngredientEditor
           ingredient={editingIngredient}
+          ingredients={ingredients}
+          batches={batches}
           onClose={() => setEditingIngredient(undefined)}
           onSaved={handleSaved}
+          onBatchesChanged={onBatchesChanged}
         />
       )}
     </div>
