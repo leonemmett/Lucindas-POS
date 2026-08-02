@@ -23,9 +23,9 @@ import { TableSelector } from './components/TableSelector'
 import { useStaff } from './hooks/useStaff'
 import { useReceiptsEnabled } from './hooks/useReceiptsEnabled'
 import { useGramsPerBall } from './hooks/useGramsPerBall'
-import { useExpiryAlertWindowDays } from './hooks/useExpiryAlertWindowDays'
+import { useExpiryAlertThresholds } from './hooks/useExpiryAlertThresholds'
 import { useItemPopularity } from './hooks/useItemPopularity'
-import { isLowStock, isExpired, isExpiringSoon } from './lib/inventory'
+import { isLowStock, expiryTier } from './lib/inventory'
 import { nextTableNumber, tableNameForNumber } from './lib/constants'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
@@ -57,13 +57,19 @@ function App() {
   const { staff, loading: staffLoading, error: staffError, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
   const gramsPerBall = useGramsPerBall()
-  const expiryAlertWindowDays = useExpiryAlertWindowDays()
+  const {
+    amberDays: expiryAmberDays,
+    redDays: expiryRedDays,
+    loading: expiryThresholdsLoading,
+    saveAmberDays: saveExpiryAmberDays,
+    saveRedDays: saveExpiryRedDays,
+  } = useExpiryAlertThresholds()
   const { popularity } = useItemPopularity()
 
   const lowStockCount = ingredients.filter(isLowStock).length
   const activeBatches = batches.filter((b) => !b.emptied_at)
   const expiryAlertCount = activeBatches.filter(
-    (b) => isExpired(b) || isExpiringSoon(b, expiryAlertWindowDays),
+    (b) => expiryTier(b, expiryAmberDays, expiryRedDays) !== 'ok',
   ).length
 
   const [view, setView] = useState<View>('pos')
@@ -537,6 +543,11 @@ function App() {
             receiptsEnabled={receiptsEnabled}
             loading={receiptsLoading}
             onSaveReceiptsEnabled={saveReceiptsEnabled}
+            amberDays={expiryAmberDays}
+            redDays={expiryRedDays}
+            expiryLoading={expiryThresholdsLoading}
+            onSaveAmberDays={saveExpiryAmberDays}
+            onSaveRedDays={saveExpiryRedDays}
           />
         </main>
       )}

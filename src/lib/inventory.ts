@@ -19,12 +19,13 @@ export function isEmptied(batch: IngredientBatch): boolean {
   return batch.emptied_at !== null
 }
 
-export function isExpired(batch: IngredientBatch): boolean {
-  return !isEmptied(batch) && daysUntil(batch.expiry_date) < 0
-}
+export type ExpiryTier = 'red' | 'amber' | 'ok'
 
-export function isExpiringSoon(batch: IngredientBatch, windowDays: number): boolean {
-  if (isEmptied(batch)) return false
+// Applies to any ingredient with tracked containers, gelato or otherwise —
+// red (already expired or expiring within redDays) always outranks amber.
+export function expiryTier(batch: IngredientBatch, amberDays: number, redDays: number): ExpiryTier {
   const days = daysUntil(batch.expiry_date)
-  return days >= 0 && days <= windowDays
+  if (days <= redDays) return 'red'
+  if (days <= amberDays) return 'amber'
+  return 'ok'
 }

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { IngredientBatchEditor } from './IngredientBatchEditor'
-import { isEmptied, isExpired, isExpiringSoon } from '../lib/inventory'
-import { useExpiryAlertWindowDays } from '../hooks/useExpiryAlertWindowDays'
+import { isEmptied, expiryTier } from '../lib/inventory'
+import { useExpiryAlertThresholds } from '../hooks/useExpiryAlertThresholds'
 import type { Ingredient, IngredientBatch } from '../lib/types'
 
-type Filter = 'expired' | 'soon' | 'all'
+type Filter = 'red' | 'amber' | 'all'
 
 type ExpiryDashboardProps = {
   batches: IngredientBatch[]
@@ -15,9 +15,9 @@ type ExpiryDashboardProps = {
 }
 
 export function ExpiryDashboard({ batches, ingredients, loading, error, onChanged }: ExpiryDashboardProps) {
-  const windowDays = useExpiryAlertWindowDays()
+  const { amberDays, redDays } = useExpiryAlertThresholds()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('soon')
+  const [filter, setFilter] = useState<Filter>('red')
   const [editingBatch, setEditingBatch] = useState<IngredientBatch | null | undefined>(undefined)
 
   const nameById = useMemo(() => new Map(ingredients.map((i) => [i.id, i.name])), [ingredients])
@@ -26,19 +26,22 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
 
   const visible = useMemo(() => {
     let list = active
-    if (filter === 'expired') list = list.filter((b) => isExpired(b))
-    if (filter === 'soon') list = list.filter((b) => isExpiringSoon(b, windowDays) && !isExpired(b))
+    if (filter === 'red') list = list.filter((b) => expiryTier(b, amberDays, redDays) === 'red')
+    if (filter === 'amber') list = list.filter((b) => expiryTier(b, amberDays, redDays) === 'amber')
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       list = list.filter((b) => (nameById.get(b.ingredient_id) ?? '').toLowerCase().includes(q))
     }
     return [...list].sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
-  }, [active, filter, search, nameById, windowDays])
+  }, [active, filter, search, nameById, amberDays, redDays])
 
-  const expiredCount = useMemo(() => active.filter((b) => isExpired(b)).length, [active])
-  const soonCount = useMemo(
-    () => active.filter((b) => isExpiringSoon(b, windowDays) && !isExpired(b)).length,
-    [active, windowDays],
+  const redCount = useMemo(
+    () => active.filter((b) => expiryTier(b, amberDays, redDays) === 'red').length,
+    [active, amberDays, redDays],
+  )
+  const amberCount = useMemo(
+    () => active.filter((b) => expiryTier(b, amberDays, redDays) === 'amber').length,
+    [active, amberDays, redDays],
   )
 
   function handleSaved() {
@@ -79,14 +82,18 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
               onChange={(e) => setSearch(e.target.value)}
             />
             <div className="category-tabs">
-              {(['expired', 'soon', 'all'] as Filter[]).map((f) => (
+              {(['red', 'amber', 'all'] as Filter[]).map((f) => (
                 <button
                   key={f}
                   type="button"
                   className={filter === f ? 'category-tab active' : 'category-tab'}
                   onClick={() => setFilter(f)}
                 >
-                  {f === 'expired' ? `Expired (${expiredCount})` : f === 'soon' ? `Expiring soon (${soonCount})` : 'All containers'}
+                  {f === 'red'
+                    ? `Red · ≤${redDays}d (${redCount})`
+                    : f === 'amber'
+                      ? `Amber · ≤${amberDays}d (${amberCount})`
+                      : 'All containers'}
                 </button>
               ))}
             </div>
@@ -107,13 +114,12 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
               </thead>
               <tbody>
                 {visible.map((b) => {
-                  const expired = isExpired(b)
-                  const soon = !expired && isExpiringSoon(b, windowDays)
+                  const tier = expiryTier(b, amberDays, redDays)
                   return (
                     <tr key={b.id}>
                       <td>{nameById.get(b.ingredient_id) ?? 'Unknown'}</td>
                       <td>{b.weight_grams}</td>
-                      <td className={expired ? 'ingredient-stock-low' : soon ? 'ingredient-stock-warning' : ''}>
+                      <td className={tier === 'red' ? 'ingredient-stock-low' : tier === 'amber' ? 'ingredient-stock-warning' : ''}>
                         {b.expiry_date}
                       </td>
                       <td>{b.received_at.slice(0, 10)}</td>
