@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { FlavorSearchSelect } from './FlavorSearchSelect'
 import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 type MilkPickerModalProps = {
@@ -23,8 +22,19 @@ export function MilkPickerModal({ item, milks, onCancel, onConfirm }: MilkPicker
       <div className="modal-card checkout-modal">
         <h2>{item.name}</h2>
 
-        <label htmlFor="milk-select">Milk</label>
-        <FlavorSearchSelect id="milk-select" flavours={milks} value={selected} onChange={setSelected} />
+        <label>Milk</label>
+        <div className="payment-options">
+          {milks.map((milk) => (
+            <button
+              key={milk.id}
+              type="button"
+              className={selected === milk.id ? 'payment-option active' : 'payment-option'}
+              onClick={() => setSelected(milk.id)}
+            >
+              {milk.name}
+            </button>
+          ))}
+        </div>
 
         <div className="checkout-actions">
           <button type="button" className="checkout-cancel" onClick={onCancel}>
