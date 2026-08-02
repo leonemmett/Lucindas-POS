@@ -86,9 +86,10 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'expiry', 'reports', 'staff', 'settings']
+    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'staff', 'settings']
     if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
-  }, [view, isAdmin])
+    if (view === 'expiry' && isCounterSession) setView('pos')
+  }, [view, isAdmin, isCounterSession])
 
   // Once a staff member signs in over the counter session, the overlay has done its job.
   useEffect(() => {
@@ -350,7 +351,7 @@ function App() {
                 {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
               </button>
             )}
-            {isAdmin && (
+            {!isCounterSession && (
               <button
                 type="button"
                 className={view === 'expiry' ? 'view-tab active' : 'view-tab'}
@@ -504,7 +505,7 @@ function App() {
         </main>
       )}
 
-      {view === 'expiry' && isAdmin && (
+      {view === 'expiry' && !isCounterSession && (
         <main className="app-main">
           <ExpiryDashboard
             batches={batches}
