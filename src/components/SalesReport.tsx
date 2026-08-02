@@ -6,7 +6,7 @@ import { SaleDetailsModal } from './SaleDetailsModal'
 import { paymentLabel } from '../lib/payments'
 import { todayLocalDateString, addDaysLocal, startOfWeekLocal, startOfMonthLocal, toLocalDateString } from '../lib/dates'
 import { downloadCsv, toCsv } from '../lib/csv'
-import type { MenuItem, Sale } from '../lib/types'
+import type { Ingredient, MenuItem, Sale, SaleItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -38,11 +38,43 @@ function presetRange(preset: Preset, custom: { start: string; end: string }) {
   }
 }
 
-type SalesReportProps = {
-  menuItems: MenuItem[]
+// Cost of one unit of a sold line: the menu item's fixed recipe (and container,
+// e.g. a cup/cone) plus whichever flavor/milk was actually picked for that
+// sale — using the real recorded grams rather than guessing, since a
+// flavor-picker item's ingredient varies sale to sale. `hasIngredients` tracks
+// whether the item consumes anything at all, so a genuinely-zero-cost item
+// (all its ingredients priced at $0, usually because cost hasn't been entered
+// yet) can be told apart from one with no recipe by design.
+function saleItemUnitCost(
+  item: SaleItem,
+  menuItem: MenuItem | undefined,
+  costByIngredientId: Map<string, number>,
+): { cost: number; hasIngredients: boolean } {
+  let cost = 0
+  let hasIngredients = false
+
+  for (const r of menuItem?.recipe ?? []) {
+    hasIngredients = true
+    cost += r.qty * (costByIngredientId.get(r.ingredient_id) ?? 0)
+  }
+  if (menuItem?.container_id) {
+    hasIngredients = true
+    cost += costByIngredientId.get(menuItem.container_id) ?? 0
+  }
+  for (const f of item.flavors ?? []) {
+    hasIngredients = true
+    cost += f.grams * (costByIngredientId.get(f.ingredient_id) ?? 0)
+  }
+
+  return { cost, hasIngredients }
 }
 
-export function SalesReport({ menuItems }: SalesReportProps) {
+type SalesReportProps = {
+  menuItems: MenuItem[]
+  ingredients: Ingredient[]
+}
+
+export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
   const [preset, setPreset] = useState<Preset>('today')
   const [customStart, setCustomStart] = useState(todayLocalDateString())
   const [customEnd, setCustomEnd] = useState(todayLocalDateString())
@@ -153,13 +185,15 @@ export function SalesReport({ menuItems }: SalesReportProps) {
       }))
   }, [activeSales, staffNames])
 
+  const menuItemById = useMemo(() => new Map(menuItems.map((m) => [m.id, m])), [menuItems])
+  const costByIngredientId = useMemo(() => new Map(ingredients.map((i) => [i.id, i.cost_per_unit])), [ingredients])
+
   // Menu prices are IVA-inclusive, so each line's tax is backed out of its
   // price rather than added on top. A sale's discount is applied at the
   // sale level, not per line, so each item's revenue is scaled down by the
   // sale's actual total-to-subtotal ratio before splitting into base/IVA —
   // otherwise a discounted or 100%-staff sale would overstate tax collected.
   const ivaByDay = useMemo(() => {
-    const menuItemById = new Map(menuItems.map((m) => [m.id, m]))
     const map = new Map<
       string,
       { exempt_total: number; tax_8_net: number; tax_8_iva: number; tax_16_net: number; tax_16_iva: number }
@@ -196,7 +230,7 @@ export function SalesReport({ menuItems }: SalesReportProps) {
         ...v,
         total: v.exempt_total + v.tax_8_net + v.tax_8_iva + v.tax_16_net + v.tax_16_iva,
       }))
-  }, [activeSales, menuItems])
+  }, [activeSales, menuItemById])
 
   const ivaTotals = useMemo(
     () =>
@@ -216,6 +250,77 @@ export function SalesReport({ menuItems }: SalesReportProps) {
     downloadCsv(
       `iva-report-${start}-to-${end}.csv`,
       toCsv(ivaByDay, ['date', 'exempt_total', 'tax_8_net', 'tax_8_iva', 'tax_16_net', 'tax_16_iva', 'total']),
+    )
+  }
+
+  // 100%-discount (staff consumption) sales are real cost with no revenue —
+  // folding them into the per-item margin table would make ordinary items
+  // look artificially unprofitable, so they're tracked as a separate cost
+  // total instead, mirroring how "Top items" already excludes them.
+  const paidSales = useMemo(() => activeSales.filter((s) => s.discount_percent !== 100), [activeSales])
+
+  const costMarginByItem = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; qty: number; revenue: number; cost: number; hasIngredients: boolean }
+    >()
+    for (const s of paidSales) {
+      for (const item of s.items) {
+        const menuItem = menuItemById.get(item.menu_item_id)
+        const { cost, hasIngredients } = saleItemUnitCost(item, menuItem, costByIngredientId)
+        const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0, cost: 0, hasIngredients: false }
+        prev.qty += item.qty
+        prev.revenue += item.price * item.qty
+        prev.cost += cost * item.qty
+        prev.hasIngredients = prev.hasIngredients || hasIngredients
+        map.set(item.menu_item_id, prev)
+      }
+    }
+    return [...map.values()]
+      .map((v) => ({
+        ...v,
+        profit: v.revenue - v.cost,
+        marginPct: v.revenue > 0 ? (v.revenue - v.cost) / v.revenue : 0,
+        // hasIngredients but zero cost almost always means cost_per_unit was
+        // never entered for whatever it's made of, not that it's free.
+        costMissing: v.hasIngredients && v.cost === 0,
+      }))
+      .sort((a, b) => b.profit - a.profit)
+  }, [paidSales, menuItemById, costByIngredientId])
+
+  const costMarginTotals = useMemo(() => {
+    const revenue = costMarginByItem.reduce((sum, i) => sum + i.revenue, 0)
+    const cost = costMarginByItem.reduce((sum, i) => sum + i.cost, 0)
+    return { revenue, cost, profit: revenue - cost, marginPct: revenue > 0 ? (revenue - cost) / revenue : 0 }
+  }, [costMarginByItem])
+
+  const staffConsumptionCost = useMemo(() => {
+    const staffSales = activeSales.filter((s) => s.discount_percent === 100)
+    let cost = 0
+    for (const s of staffSales) {
+      for (const item of s.items) {
+        const menuItem = menuItemById.get(item.menu_item_id)
+        cost += saleItemUnitCost(item, menuItem, costByIngredientId).cost * item.qty
+      }
+    }
+    return cost
+  }, [activeSales, menuItemById, costByIngredientId])
+
+  function handleDownloadCostMargin() {
+    downloadCsv(
+      `cost-margin-${start}-to-${end}.csv`,
+      toCsv(
+        costMarginByItem.map((i) => ({
+          name: i.name,
+          qty: i.qty,
+          revenue: i.revenue.toFixed(2),
+          cost: i.cost.toFixed(2),
+          profit: i.profit.toFixed(2),
+          margin_pct: (i.marginPct * 100).toFixed(1),
+          cost_data_missing: i.costMissing ? 'yes' : 'no',
+        })),
+        ['name', 'qty', 'revenue', 'cost', 'profit', 'margin_pct', 'cost_data_missing'],
+      ),
     )
   }
 
@@ -453,6 +558,74 @@ export function SalesReport({ menuItems }: SalesReportProps) {
                       <td>{currency.format(row.tax_16_net)}</td>
                       <td>{currency.format(row.tax_16_iva)}</td>
                       <td>{currency.format(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="cashup-section">
+            <div className="menu-manager-header">
+              <h3>Cost &amp; margin</h3>
+              <button
+                type="button"
+                className="menu-manager-edit"
+                onClick={handleDownloadCostMargin}
+                disabled={costMarginByItem.length === 0}
+              >
+                Download CSV
+              </button>
+            </div>
+            <p className="settings-hint">
+              Cost is computed from each ingredient's cost/unit — items using an ingredient with no cost entered
+              yet are marked "no cost data" rather than shown as free. Staff consumption (100% discount) is real
+              cost with no revenue, so it's excluded from this table and shown separately below.
+            </p>
+            <div className="stat-tiles">
+              <div className="stat-tile">
+                <span className="stat-tile-label">Revenue</span>
+                <span className="stat-tile-value">{currency.format(costMarginTotals.revenue)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Cost of goods sold</span>
+                <span className="stat-tile-value">{currency.format(costMarginTotals.cost)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Gross profit</span>
+                <span className="stat-tile-value">{currency.format(costMarginTotals.profit)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Margin</span>
+                <span className="stat-tile-value">{(costMarginTotals.marginPct * 100).toFixed(1)}%</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Staff consumption cost</span>
+                <span className="stat-tile-value stat-tile-danger">{currency.format(staffConsumptionCost)}</span>
+              </div>
+            </div>
+
+            {costMarginByItem.length > 0 && (
+              <table className="menu-manager-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Revenue</th>
+                    <th>Cost</th>
+                    <th>Profit</th>
+                    <th>Margin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costMarginByItem.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{row.qty}</td>
+                      <td>{currency.format(row.revenue)}</td>
+                      <td>{currency.format(row.cost)}</td>
+                      <td className={row.profit < 0 ? 'ingredient-stock-low' : ''}>{currency.format(row.profit)}</td>
+                      <td>{row.costMissing ? 'No cost data' : `${(row.marginPct * 100).toFixed(1)}%`}</td>
                     </tr>
                   ))}
                 </tbody>
