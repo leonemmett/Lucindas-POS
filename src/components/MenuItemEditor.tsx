@@ -16,6 +16,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
   const [price, setPrice] = useState(item?.price ?? 0)
   const [ballCount, setBallCount] = useState(item?.ball_count ?? 0)
   const [weightGrams, setWeightGrams] = useState(item?.weight_grams ?? 0)
+  const [milkMl, setMilkMl] = useState(item?.milk_ml ?? 0)
   const [containerId, setContainerId] = useState<string>(item?.container_id ?? '')
   const [recipe, setRecipe] = useState<RecipeEntry[]>(item?.recipe ?? [])
   const [isFavourite, setIsFavourite] = useState(item?.is_favourite ?? false)
@@ -47,6 +48,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       price,
       ball_count: ballCount,
       weight_grams: weightGrams,
+      milk_ml: milkMl,
       container_id: containerId || null,
       recipe,
       is_favourite: isFavourite,
@@ -149,7 +151,23 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
               onChange={(e) => setWeightGrams(Number(e.target.value))}
             />
           </div>
+          <div>
+            <label htmlFor="item-milk">Milk (ml)</label>
+            <input
+              id="item-milk"
+              type="number"
+              min={0}
+              value={milkMl}
+              onChange={(e) => setMilkMl(Number(e.target.value))}
+            />
+          </div>
         </div>
+        {milkMl > 0 && (
+          <p className="settings-hint">
+            Staff will be asked to choose a milk at checkout — deducted from whichever milk ingredient is marked
+            "Milk" in Ingredients, not from the recipe below.
+          </p>
+        )}
 
         <label htmlFor="item-container">Container</label>
         <select id="item-container" value={containerId} onChange={(e) => setContainerId(e.target.value)}>

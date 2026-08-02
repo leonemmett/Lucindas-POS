@@ -16,6 +16,7 @@ export type MenuItem = {
   price: number
   ball_count: number
   weight_grams: number
+  milk_ml: number
   container_id: string | null
   recipe: RecipeEntry[]
   is_favourite: boolean
@@ -32,6 +33,7 @@ export type Ingredient = {
   cost_per_unit: number
   is_flavour: boolean
   is_container: boolean
+  is_milk: boolean
   updated_at: string
 }
 

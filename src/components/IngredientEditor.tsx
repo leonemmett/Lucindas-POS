@@ -29,6 +29,7 @@ export function IngredientEditor({
   const [costPerUnit, setCostPerUnit] = useState(ingredient?.cost_per_unit ?? 0)
   const [isFlavour, setIsFlavour] = useState(ingredient?.is_flavour ?? false)
   const [isContainer, setIsContainer] = useState(ingredient?.is_container ?? false)
+  const [isMilk, setIsMilk] = useState(ingredient?.is_milk ?? false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingBatch, setEditingBatch] = useState<IngredientBatch | null | undefined>(undefined)
@@ -58,6 +59,7 @@ export function IngredientEditor({
       cost_per_unit: costPerUnit,
       is_flavour: isFlavour,
       is_container: isContainer,
+      is_milk: isMilk,
       updated_at: new Date().toISOString(),
     }
 
@@ -157,6 +159,10 @@ export function IngredientEditor({
         <label className="checkbox-label">
           <input type="checkbox" checked={isContainer} onChange={(e) => setIsContainer(e.target.checked)} />
           Container
+        </label>
+        <label className="checkbox-label">
+          <input type="checkbox" checked={isMilk} onChange={(e) => setIsMilk(e.target.checked)} />
+          Milk (offered as a choice on milk-based drinks)
         </label>
 
         {ingredient && (

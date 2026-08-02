@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { FlavorPickerModal } from './FlavorPickerModal'
+import { MilkPickerModal } from './MilkPickerModal'
 import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -41,8 +42,11 @@ export function MenuGrid({
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [search, setSearch] = useState('')
   const [flavorPickerItem, setFlavorPickerItem] = useState<MenuItem | null>(null)
+  const [milkPickerItem, setMilkPickerItem] = useState<MenuItem | null>(null)
+  const [pendingFlavors, setPendingFlavors] = useState<FlavorSelection[]>([])
 
   const flavours = useMemo(() => ingredients.filter((i) => i.is_flavour), [ingredients])
+  const milks = useMemo(() => ingredients.filter((i) => i.is_milk), [ingredients])
 
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((item) => item.category))
@@ -72,14 +76,33 @@ export function MenuGrid({
   function handleTileClick(item: MenuItem) {
     if (item.ball_count > 0 || item.weight_grams > 0) {
       setFlavorPickerItem(item)
+    } else if (item.milk_ml > 0) {
+      setMilkPickerItem(item)
     } else {
       onSelect(item)
     }
   }
 
   function handleFlavorsConfirmed(flavors: FlavorSelection[]) {
-    if (flavorPickerItem) onSelect(flavorPickerItem, flavors)
+    const item = flavorPickerItem
     setFlavorPickerItem(null)
+    if (!item) return
+    // Some items (e.g. a gelato milkshake) need both a flavor and a milk
+    // choice — chain into the milk picker instead of adding to the ticket yet.
+    if (item.milk_ml > 0) {
+      setPendingFlavors(flavors)
+      setMilkPickerItem(item)
+    } else {
+      onSelect(item, flavors)
+    }
+  }
+
+  function handleMilkConfirmed(milk: FlavorSelection) {
+    const item = milkPickerItem
+    setMilkPickerItem(null)
+    if (!item) return
+    onSelect(item, [...pendingFlavors, milk])
+    setPendingFlavors([])
   }
 
   if (loading) {
@@ -144,6 +167,18 @@ export function MenuGrid({
           gramsPerBall={gramsPerBall}
           onCancel={() => setFlavorPickerItem(null)}
           onConfirm={handleFlavorsConfirmed}
+        />
+      )}
+
+      {milkPickerItem && (
+        <MilkPickerModal
+          item={milkPickerItem}
+          milks={milks}
+          onCancel={() => {
+            setMilkPickerItem(null)
+            setPendingFlavors([])
+          }}
+          onConfirm={handleMilkConfirmed}
         />
       )}
     </div>
