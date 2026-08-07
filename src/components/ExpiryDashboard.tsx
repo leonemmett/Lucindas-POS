@@ -103,7 +103,7 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
                 </button>
               ))}
             </div>
-            <label htmlFor="expiry-sort" className="expiry-sort-label">
+            <label htmlFor="expiry-sort" className="sort-select-label">
               Sort by
               <select id="expiry-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
                 <option value="expiry">Expiry date</option>

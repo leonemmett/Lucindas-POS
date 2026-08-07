@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { IngredientEditor } from './IngredientEditor'
 import { IngredientBatchEditor } from './IngredientBatchEditor'
-import { categorizeIngredient, isLowStock } from '../lib/inventory'
+import { categorizeIngredient, isLowStock, sortIngredients, type IngredientSortBy } from '../lib/inventory'
 import type { Ingredient, IngredientBatch } from '../lib/types'
 
 type CategoryFilter = 'all' | ReturnType<typeof categorizeIngredient>
+type SortBy = 'urgency' | IngredientSortBy
 
 type LowStockDashboardProps = {
   ingredients: Ingredient[]
@@ -26,6 +27,7 @@ export function LowStockDashboard({
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [restockingBatchFor, setRestockingBatchFor] = useState<Ingredient | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
+  const [sortBy, setSortBy] = useState<SortBy>('urgency')
 
   const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
 
@@ -63,15 +65,20 @@ export function LowStockDashboard({
     [allLow, categoryFilter],
   )
 
-  const outOfStock = useMemo(
-    () => categoryFiltered.filter((i) => i.stock <= 0).sort((a, b) => a.stock - b.stock),
-    [categoryFiltered],
-  )
+  const outOfStock = useMemo(() => {
+    const list = categoryFiltered.filter((i) => i.stock <= 0)
+    if (sortBy === 'urgency') return list.sort((a, b) => a.stock - b.stock)
+    return sortIngredients(list, sortBy, batches)
+  }, [categoryFiltered, sortBy, batches])
 
   const runningLow = useMemo(() => {
-    const deficitRatio = (i: Ingredient) => (i.low_threshold - i.stock) / i.low_threshold
-    return categoryFiltered.filter((i) => i.stock > 0).sort((a, b) => deficitRatio(b) - deficitRatio(a))
-  }, [categoryFiltered])
+    const list = categoryFiltered.filter((i) => i.stock > 0)
+    if (sortBy === 'urgency') {
+      const deficitRatio = (i: Ingredient) => (i.low_threshold - i.stock) / i.low_threshold
+      return list.sort((a, b) => deficitRatio(b) - deficitRatio(a))
+    }
+    return sortIngredients(list, sortBy, batches)
+  }, [categoryFiltered, sortBy, batches])
 
   function handleSaved() {
     setEditingIngredient(undefined)
@@ -120,6 +127,15 @@ export function LowStockDashboard({
               {cat} ({categoryCounts.get(cat)})
             </button>
           ))}
+          <label htmlFor="low-stock-sort" className="sort-select-label">
+            Sort by
+            <select id="low-stock-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
+              <option value="urgency">Most urgent first</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="weight">Stock (highest first)</option>
+              <option value="expiry">Expiry date</option>
+            </select>
+          </label>
         </div>
       )}
 

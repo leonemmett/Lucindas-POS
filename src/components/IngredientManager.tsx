@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { IngredientEditor } from './IngredientEditor'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
-import { isLowStock } from '../lib/inventory'
+import { isLowStock, sortIngredients, type IngredientSortBy } from '../lib/inventory'
 import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
 import type { Ingredient, IngredientBatch } from '../lib/types'
 
@@ -33,6 +33,7 @@ export function IngredientManager({
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [sortBy, setSortBy] = useState<IngredientSortBy>('name')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -46,8 +47,8 @@ export function IngredientManager({
       const q = search.trim().toLowerCase()
       list = list.filter((i) => i.name.toLowerCase().includes(q))
     }
-    return list
-  }, [ingredients, filter, search])
+    return sortIngredients(list, sortBy, batches)
+  }, [ingredients, filter, search, sortBy, batches])
 
   function handleSaved() {
     setEditingIngredient(undefined)
@@ -186,6 +187,14 @@ export function IngredientManager({
             </button>
           ))}
         </div>
+        <label htmlFor="ingredient-sort" className="sort-select-label">
+          Sort by
+          <select id="ingredient-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as IngredientSortBy)}>
+            <option value="name">Name (A–Z)</option>
+            <option value="weight">Stock (highest first)</option>
+            <option value="expiry">Expiry date</option>
+          </select>
+        </label>
       </div>
 
       {loading && <div className="menu-grid-status">Loading ingredients…</div>}

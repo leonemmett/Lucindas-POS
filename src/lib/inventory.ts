@@ -51,6 +51,45 @@ export function categorizeIngredient(ingredient: Ingredient): IngredientCategory
   return 'Extras'
 }
 
+// Soonest expiry date among an ingredient's active (non-emptied) containers,
+// or null if it isn't batch-tracked / has nothing active — used to sort
+// ingredients lists by expiry without duplicating the batch lookup per call site.
+export function earliestExpiry(ingredientId: string, batches: IngredientBatch[]): string | null {
+  const dates = batches
+    .filter((b) => b.ingredient_id === ingredientId && !isEmptied(b))
+    .map((b) => b.expiry_date)
+    .sort()
+  return dates[0] ?? null
+}
+
+export type IngredientSortBy = 'name' | 'weight' | 'expiry'
+
+// Shared sort for any ingredients list (Ingredients tab, Low Stock tab) so
+// "by name/weight/expiry" behaves identically everywhere it's offered.
+// Ingredients with no active batch sort to the end under 'expiry'.
+export function sortIngredients(
+  list: Ingredient[],
+  sortBy: IngredientSortBy,
+  batches: IngredientBatch[],
+): Ingredient[] {
+  const sorted = [...list]
+  if (sortBy === 'name') {
+    sorted.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (sortBy === 'weight') {
+    sorted.sort((a, b) => b.stock - a.stock)
+  } else {
+    sorted.sort((a, b) => {
+      const aExpiry = earliestExpiry(a.id, batches)
+      const bExpiry = earliestExpiry(b.id, batches)
+      if (aExpiry && bExpiry) return aExpiry.localeCompare(bExpiry)
+      if (aExpiry) return -1
+      if (bExpiry) return 1
+      return a.name.localeCompare(b.name)
+    })
+  }
+  return sorted
+}
+
 export type ExpiryTier = 'red' | 'amber' | 'ok'
 
 // Applies to any ingredient with tracked containers, gelato or otherwise —
