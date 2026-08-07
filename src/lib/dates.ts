@@ -25,6 +25,13 @@ export function startOfMonthLocal(dateStr: string): string {
   return `${dateStr.slice(0, 7)}-01`
 }
 
+// Inclusive day count between two local date strings, e.g. same day -> 1.
+export function daysBetweenLocal(startDateStr: string, endDateStr: string): number {
+  const start = new Date(`${startDateStr}T00:00:00`)
+  const end = new Date(`${endDateStr}T00:00:00`)
+  return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1
+}
+
 // endDateStr is inclusive; returns ISO bounds with an exclusive end (next day midnight).
 export function localDateRangeToISO(startDateStr: string, endDateStr: string) {
   const startISO = new Date(`${startDateStr}T00:00:00`).toISOString()

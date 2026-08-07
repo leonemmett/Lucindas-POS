@@ -1297,6 +1297,15 @@
   color: var(--danger);
 }
 
+.fixed-cost-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  width: 120px;
+}
+
 .report-sale-voided td {
   color: var(--chart-muted);
   text-decoration: line-through;

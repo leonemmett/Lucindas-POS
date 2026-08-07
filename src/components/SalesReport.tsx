@@ -2,10 +2,19 @@ import { useMemo, useState } from 'react'
 import { useSalesInRange } from '../hooks/useSalesInRange'
 import { useStaffNames } from '../hooks/useStaffNames'
 import { useCardLabels } from '../hooks/useCardLabels'
+import { useFixedCosts } from '../hooks/useFixedCosts'
 import { SaleDetailsModal } from './SaleDetailsModal'
 import { paymentLabel } from '../lib/payments'
-import { todayLocalDateString, addDaysLocal, startOfWeekLocal, startOfMonthLocal, toLocalDateString } from '../lib/dates'
+import {
+  todayLocalDateString,
+  addDaysLocal,
+  startOfWeekLocal,
+  startOfMonthLocal,
+  toLocalDateString,
+  daysBetweenLocal,
+} from '../lib/dates'
 import { downloadCsv, toCsv } from '../lib/csv'
+import { supabase } from '../lib/supabaseClient'
 import type { Ingredient, MenuItem, Sale, SaleItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -84,6 +93,13 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
   const { sales, loading, refetch } = useSalesInRange(start, end)
   const staffNames = useStaffNames()
   const { card1Label, card2Label } = useCardLabels()
+  const { fixedCosts, refetch: refetchFixedCosts } = useFixedCosts()
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [addingCategory, setAddingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryAmount, setNewCategoryAmount] = useState('')
+  const [fixedCostSaving, setFixedCostSaving] = useState(false)
 
   const activeSales = useMemo(() => sales.filter((s) => !s.voided_at), [sales])
   const voidedSales = useMemo(() => sales.filter((s) => s.voided_at), [sales])
@@ -305,6 +321,47 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
     }
     return cost
   }, [activeSales, menuItemById, costByIngredientId])
+
+  // Fixed costs (rent, utilities, payroll, ...) don't tie to a menu item or
+  // ingredient, so they can't flow through saleItemUnitCost — they're a flat
+  // monthly average the owner enters and revises over time. Each edit inserts
+  // a new effective-dated row rather than overwriting, so picking the latest
+  // row with effective_from <= the range's end date gives the amount that was
+  // actually in effect back then, even after it's since been updated.
+  const currentFixedCostByCategory = useMemo(() => {
+    const map = new Map<string, (typeof fixedCosts)[number]>()
+    for (const row of fixedCosts) {
+      if (row.effective_from > end) continue
+      if (!map.has(row.category)) map.set(row.category, row)
+    }
+    return map
+  }, [fixedCosts, end])
+
+  const rangeDays = useMemo(() => daysBetweenLocal(start, end), [start, end])
+
+  // A flat 30-day month, since these are averages the owner will nudge over
+  // time anyway — exact days-in-month precision would be false accuracy.
+  const totalFixedCosts = useMemo(() => {
+    let total = 0
+    for (const row of currentFixedCostByCategory.values()) total += (row.amount / 30) * rangeDays
+    return total
+  }, [currentFixedCostByCategory, rangeDays])
+
+  const netProfit = costMarginTotals.profit - staffConsumptionCost - totalFixedCosts
+  const netMarginPct = costMarginTotals.revenue > 0 ? netProfit / costMarginTotals.revenue : 0
+
+  async function handleSaveFixedCost(category: string, amountStr: string) {
+    const amount = Number(amountStr)
+    if (!category.trim() || Number.isNaN(amount) || amount < 0) return
+    setFixedCostSaving(true)
+    await supabase.from('fixed_costs').insert({ category: category.trim(), amount })
+    setFixedCostSaving(false)
+    setEditingCategory(null)
+    setAddingCategory(false)
+    setNewCategoryName('')
+    setNewCategoryAmount('')
+    refetchFixedCosts()
+  }
 
   function handleDownloadCostMargin() {
     downloadCsv(
@@ -631,6 +688,145 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
                 </tbody>
               </table>
             )}
+          </section>
+
+          <section className="cashup-section">
+            <div className="menu-manager-header">
+              <h3>Fixed costs &amp; net profit</h3>
+            </div>
+            <p className="settings-hint">
+              Enter a monthly average for each overhead cost (rent, utilities, payroll, admin) — updating one here
+              only changes it going forward, so past reports keep using whatever was in effect at the time. Costs
+              are prorated to the selected date range from a flat 30-day month.
+            </p>
+
+            <table className="menu-manager-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Monthly average</th>
+                  <th>This range ({rangeDays}d)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...currentFixedCostByCategory.entries()].map(([category, row]) => (
+                  <tr key={category}>
+                    <td>{category}</td>
+                    <td>
+                      {editingCategory === category ? (
+                        <input
+                          type="number"
+                          className="fixed-cost-input"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          autoFocus
+                        />
+                      ) : (
+                        currency.format(row.amount)
+                      )}
+                    </td>
+                    <td>{currency.format((row.amount / 30) * rangeDays)}</td>
+                    <td>
+                      {editingCategory === category ? (
+                        <>
+                          <button
+                            type="button"
+                            className="menu-manager-edit"
+                            disabled={fixedCostSaving}
+                            onClick={() => handleSaveFixedCost(category, editAmount)}
+                          >
+                            Save
+                          </button>
+                          <button type="button" className="checkout-cancel" onClick={() => setEditingCategory(null)}>
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="menu-manager-edit"
+                          onClick={() => {
+                            setEditingCategory(category)
+                            setEditAmount(String(row.amount))
+                          }}
+                        >
+                          Update
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {addingCategory && (
+                  <tr>
+                    <td>
+                      <input
+                        type="text"
+                        className="fixed-cost-input"
+                        placeholder="e.g. Rent"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        autoFocus
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="fixed-cost-input"
+                        placeholder="0"
+                        value={newCategoryAmount}
+                        onChange={(e) => setNewCategoryAmount(e.target.value)}
+                      />
+                    </td>
+                    <td></td>
+                    <td>
+                      <button
+                        type="button"
+                        className="menu-manager-edit"
+                        disabled={fixedCostSaving}
+                        onClick={() => handleSaveFixedCost(newCategoryName, newCategoryAmount)}
+                      >
+                        Add
+                      </button>
+                      <button type="button" className="checkout-cancel" onClick={() => setAddingCategory(false)}>
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {!addingCategory && (
+              <button type="button" className="menu-manager-add" onClick={() => setAddingCategory(true)}>
+                + Add cost category
+              </button>
+            )}
+
+            <div className="stat-tiles">
+              <div className="stat-tile">
+                <span className="stat-tile-label">Gross profit</span>
+                <span className="stat-tile-value">{currency.format(costMarginTotals.profit)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Staff consumption cost</span>
+                <span className="stat-tile-value stat-tile-danger">{currency.format(staffConsumptionCost)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Fixed costs (this range)</span>
+                <span className="stat-tile-value stat-tile-danger">{currency.format(totalFixedCosts)}</span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Net profit</span>
+                <span className={`stat-tile-value ${netProfit < 0 ? 'stat-tile-danger' : ''}`}>
+                  {currency.format(netProfit)}
+                </span>
+              </div>
+              <div className="stat-tile">
+                <span className="stat-tile-label">Net margin</span>
+                <span className="stat-tile-value">{(netMarginPct * 100).toFixed(1)}%</span>
+              </div>
+            </div>
           </section>
 
           <section className="cashup-section report-sales-list">
