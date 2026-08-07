@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { IngredientEditor } from './IngredientEditor'
 import { IngredientBatchEditor } from './IngredientBatchEditor'
-import { isLowStock } from '../lib/inventory'
+import { categorizeIngredient, isLowStock } from '../lib/inventory'
 import type { Ingredient, IngredientBatch } from '../lib/types'
+
+type CategoryFilter = 'all' | ReturnType<typeof categorizeIngredient>
 
 type LowStockDashboardProps = {
   ingredients: Ingredient[]
@@ -23,8 +25,25 @@ export function LowStockDashboard({
 }: LowStockDashboardProps) {
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [restockingBatchFor, setRestockingBatchFor] = useState<Ingredient | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
 
   const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
+
+  const allLow = useMemo(() => ingredients.filter(isLowStock), [ingredients])
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const ing of allLow) {
+      const cat = categorizeIngredient(ing)
+      counts.set(cat, (counts.get(cat) ?? 0) + 1)
+    }
+    return counts
+  }, [allLow])
+
+  const categoryTabs = useMemo(
+    () => [...categoryCounts.keys()].sort((a, b) => (categoryCounts.get(b) ?? 0) - (categoryCounts.get(a) ?? 0)),
+    [categoryCounts],
+  )
 
   function handleRestock(ing: Ingredient) {
     if (batchTrackedIds.has(ing.id)) {
@@ -39,18 +58,20 @@ export function LowStockDashboard({
     onBatchesChanged()
   }
 
+  const categoryFiltered = useMemo(
+    () => (categoryFilter === 'all' ? allLow : allLow.filter((i) => categorizeIngredient(i) === categoryFilter)),
+    [allLow, categoryFilter],
+  )
+
   const outOfStock = useMemo(
-    () =>
-      ingredients
-        .filter((i) => isLowStock(i) && i.stock <= 0)
-        .sort((a, b) => a.stock - b.stock),
-    [ingredients],
+    () => categoryFiltered.filter((i) => i.stock <= 0).sort((a, b) => a.stock - b.stock),
+    [categoryFiltered],
   )
 
   const runningLow = useMemo(() => {
     const deficitRatio = (i: Ingredient) => (i.low_threshold - i.stock) / i.low_threshold
-    return ingredients.filter((i) => isLowStock(i) && i.stock > 0).sort((a, b) => deficitRatio(b) - deficitRatio(a))
-  }, [ingredients])
+    return categoryFiltered.filter((i) => i.stock > 0).sort((a, b) => deficitRatio(b) - deficitRatio(a))
+  }, [categoryFiltered])
 
   function handleSaved() {
     setEditingIngredient(undefined)
@@ -76,8 +97,34 @@ export function LowStockDashboard({
         </div>
       )}
 
-      {!loading && !error && totalLow === 0 && (
+      {!loading && !error && allLow.length === 0 && (
         <div className="menu-grid-status">Everything's stocked up.</div>
+      )}
+
+      {!loading && !error && allLow.length > 0 && (
+        <div className="category-tabs">
+          <button
+            type="button"
+            className={categoryFilter === 'all' ? 'category-tab active' : 'category-tab'}
+            onClick={() => setCategoryFilter('all')}
+          >
+            All ({allLow.length})
+          </button>
+          {categoryTabs.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={categoryFilter === cat ? 'category-tab active' : 'category-tab'}
+              onClick={() => setCategoryFilter(cat as CategoryFilter)}
+            >
+              {cat} ({categoryCounts.get(cat)})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && allLow.length > 0 && totalLow === 0 && (
+        <div className="menu-grid-status">Nothing low in this category.</div>
       )}
 
       {!loading && !error && outOfStock.length > 0 && (
