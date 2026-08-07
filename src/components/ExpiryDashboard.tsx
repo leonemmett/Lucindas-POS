@@ -5,6 +5,7 @@ import { useExpiryAlertThresholds } from '../hooks/useExpiryAlertThresholds'
 import type { Ingredient, IngredientBatch } from '../lib/types'
 
 type Filter = 'red' | 'amber' | 'all'
+type SortBy = 'expiry' | 'name' | 'weight'
 
 type ExpiryDashboardProps = {
   batches: IngredientBatch[]
@@ -18,6 +19,7 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
   const { amberDays, redDays } = useExpiryAlertThresholds()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('red')
+  const [sortBy, setSortBy] = useState<SortBy>('expiry')
   const [editingBatch, setEditingBatch] = useState<IngredientBatch | null | undefined>(undefined)
 
   const nameById = useMemo(() => new Map(ingredients.map((i) => [i.id, i.name])), [ingredients])
@@ -32,8 +34,12 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
       const q = search.trim().toLowerCase()
       list = list.filter((b) => (nameById.get(b.ingredient_id) ?? '').toLowerCase().includes(q))
     }
-    return [...list].sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
-  }, [active, filter, search, nameById, amberDays, redDays])
+    return [...list].sort((a, b) => {
+      if (sortBy === 'name') return (nameById.get(a.ingredient_id) ?? '').localeCompare(nameById.get(b.ingredient_id) ?? '')
+      if (sortBy === 'weight') return b.weight_grams - a.weight_grams
+      return a.expiry_date.localeCompare(b.expiry_date)
+    })
+  }, [active, filter, search, nameById, amberDays, redDays, sortBy])
 
   const redCount = useMemo(
     () => active.filter((b) => expiryTier(b, amberDays, redDays) === 'red').length,
@@ -97,6 +103,14 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
                 </button>
               ))}
             </div>
+            <label htmlFor="expiry-sort" className="expiry-sort-label">
+              Sort by
+              <select id="expiry-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
+                <option value="expiry">Expiry date</option>
+                <option value="name">Name (A–Z)</option>
+                <option value="weight">Weight (heaviest first)</option>
+              </select>
+            </label>
           </div>
 
           {visible.length === 0 && <div className="menu-grid-status">Nothing to show.</div>}

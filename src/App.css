@@ -908,6 +908,22 @@
   margin-bottom: 0;
 }
 
+.expiry-sort-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-l);
+}
+
+.expiry-sort-label select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
 .menu-manager-table td.ingredient-stock-low {
   color: var(--danger);
   font-weight: 600;
