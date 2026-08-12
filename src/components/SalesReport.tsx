@@ -436,6 +436,151 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
       {loading && <div className="menu-grid-status">Loading…</div>}
       {!loading && sales.length === 0 && <div className="menu-grid-status">No sales in this range.</div>}
 
+      {/* Fixed costs are managed independently of whether the selected range
+          had any sales — a zero-sale day shouldn't block adding/updating
+          overhead costs, only the "This range" column and Net profit below
+          still respect whatever range is selected. */}
+      {!loading && (
+        <section className="cashup-section">
+          <div className="menu-manager-header">
+            <h3>Fixed costs &amp; net profit</h3>
+          </div>
+          <p className="settings-hint">
+            Enter a monthly average for each overhead cost (rent, utilities, payroll, admin) — updating one here
+            only changes it going forward, so past reports keep using whatever was in effect at the time. Costs are
+            prorated to the selected date range from a flat 30-day month.
+          </p>
+
+          <table className="menu-manager-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Monthly average</th>
+                <th>This range ({rangeDays}d)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...currentFixedCostByCategory.entries()].map(([category, row]) => (
+                <tr key={category}>
+                  <td>{category}</td>
+                  <td>
+                    {editingCategory === category ? (
+                      <input
+                        type="number"
+                        className="fixed-cost-input"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        autoFocus
+                      />
+                    ) : (
+                      currency.format(row.amount)
+                    )}
+                  </td>
+                  <td>{currency.format((row.amount / 30) * rangeDays)}</td>
+                  <td>
+                    {editingCategory === category ? (
+                      <>
+                        <button
+                          type="button"
+                          className="menu-manager-edit"
+                          disabled={fixedCostSaving}
+                          onClick={() => handleSaveFixedCost(category, editAmount)}
+                        >
+                          Save
+                        </button>
+                        <button type="button" className="checkout-cancel" onClick={() => setEditingCategory(null)}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="menu-manager-edit"
+                        onClick={() => {
+                          setEditingCategory(category)
+                          setEditAmount(String(row.amount))
+                        }}
+                      >
+                        Update
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {addingCategory && (
+                <tr>
+                  <td>
+                    <input
+                      type="text"
+                      className="fixed-cost-input"
+                      placeholder="e.g. Rent"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      autoFocus
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      className="fixed-cost-input"
+                      placeholder="0"
+                      value={newCategoryAmount}
+                      onChange={(e) => setNewCategoryAmount(e.target.value)}
+                    />
+                  </td>
+                  <td></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="menu-manager-edit"
+                      disabled={fixedCostSaving}
+                      onClick={() => handleSaveFixedCost(newCategoryName, newCategoryAmount)}
+                    >
+                      Add
+                    </button>
+                    <button type="button" className="checkout-cancel" onClick={() => setAddingCategory(false)}>
+                      Cancel
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {!addingCategory && (
+            <button type="button" className="menu-manager-add" onClick={() => setAddingCategory(true)}>
+              + Add cost category
+            </button>
+          )}
+
+          <div className="stat-tiles">
+            <div className="stat-tile">
+              <span className="stat-tile-label">Gross profit</span>
+              <span className="stat-tile-value">{currency.format(costMarginTotals.profit)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Staff consumption cost</span>
+              <span className="stat-tile-value stat-tile-danger">{currency.format(staffConsumptionCost)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Fixed costs (this range)</span>
+              <span className="stat-tile-value stat-tile-danger">{currency.format(totalFixedCosts)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Net profit</span>
+              <span className={`stat-tile-value ${netProfit < 0 ? 'stat-tile-danger' : ''}`}>
+                {currency.format(netProfit)}
+              </span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Net margin</span>
+              <span className="stat-tile-value">{(netMarginPct * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {!loading && sales.length > 0 && (
         <>
           <div className="stat-tiles">
@@ -694,145 +839,6 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
                 </tbody>
               </table>
             )}
-          </section>
-
-          <section className="cashup-section">
-            <div className="menu-manager-header">
-              <h3>Fixed costs &amp; net profit</h3>
-            </div>
-            <p className="settings-hint">
-              Enter a monthly average for each overhead cost (rent, utilities, payroll, admin) — updating one here
-              only changes it going forward, so past reports keep using whatever was in effect at the time. Costs
-              are prorated to the selected date range from a flat 30-day month.
-            </p>
-
-            <table className="menu-manager-table">
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th>Monthly average</th>
-                  <th>This range ({rangeDays}d)</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...currentFixedCostByCategory.entries()].map(([category, row]) => (
-                  <tr key={category}>
-                    <td>{category}</td>
-                    <td>
-                      {editingCategory === category ? (
-                        <input
-                          type="number"
-                          className="fixed-cost-input"
-                          value={editAmount}
-                          onChange={(e) => setEditAmount(e.target.value)}
-                          autoFocus
-                        />
-                      ) : (
-                        currency.format(row.amount)
-                      )}
-                    </td>
-                    <td>{currency.format((row.amount / 30) * rangeDays)}</td>
-                    <td>
-                      {editingCategory === category ? (
-                        <>
-                          <button
-                            type="button"
-                            className="menu-manager-edit"
-                            disabled={fixedCostSaving}
-                            onClick={() => handleSaveFixedCost(category, editAmount)}
-                          >
-                            Save
-                          </button>
-                          <button type="button" className="checkout-cancel" onClick={() => setEditingCategory(null)}>
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="menu-manager-edit"
-                          onClick={() => {
-                            setEditingCategory(category)
-                            setEditAmount(String(row.amount))
-                          }}
-                        >
-                          Update
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {addingCategory && (
-                  <tr>
-                    <td>
-                      <input
-                        type="text"
-                        className="fixed-cost-input"
-                        placeholder="e.g. Rent"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        autoFocus
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="fixed-cost-input"
-                        placeholder="0"
-                        value={newCategoryAmount}
-                        onChange={(e) => setNewCategoryAmount(e.target.value)}
-                      />
-                    </td>
-                    <td></td>
-                    <td>
-                      <button
-                        type="button"
-                        className="menu-manager-edit"
-                        disabled={fixedCostSaving}
-                        onClick={() => handleSaveFixedCost(newCategoryName, newCategoryAmount)}
-                      >
-                        Add
-                      </button>
-                      <button type="button" className="checkout-cancel" onClick={() => setAddingCategory(false)}>
-                        Cancel
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {!addingCategory && (
-              <button type="button" className="menu-manager-add" onClick={() => setAddingCategory(true)}>
-                + Add cost category
-              </button>
-            )}
-
-            <div className="stat-tiles">
-              <div className="stat-tile">
-                <span className="stat-tile-label">Gross profit</span>
-                <span className="stat-tile-value">{currency.format(costMarginTotals.profit)}</span>
-              </div>
-              <div className="stat-tile">
-                <span className="stat-tile-label">Staff consumption cost</span>
-                <span className="stat-tile-value stat-tile-danger">{currency.format(staffConsumptionCost)}</span>
-              </div>
-              <div className="stat-tile">
-                <span className="stat-tile-label">Fixed costs (this range)</span>
-                <span className="stat-tile-value stat-tile-danger">{currency.format(totalFixedCosts)}</span>
-              </div>
-              <div className="stat-tile">
-                <span className="stat-tile-label">Net profit</span>
-                <span className={`stat-tile-value ${netProfit < 0 ? 'stat-tile-danger' : ''}`}>
-                  {currency.format(netProfit)}
-                </span>
-              </div>
-              <div className="stat-tile">
-                <span className="stat-tile-label">Net margin</span>
-                <span className="stat-tile-value">{(netMarginPct * 100).toFixed(1)}%</span>
-              </div>
-            </div>
           </section>
 
           <section className="cashup-section report-sales-list">
