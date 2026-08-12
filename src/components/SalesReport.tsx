@@ -354,7 +354,13 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
     const amount = Number(amountStr)
     if (!category.trim() || Number.isNaN(amount) || amount < 0) return
     setFixedCostSaving(true)
-    await supabase.from('fixed_costs').insert({ category: category.trim(), amount })
+    // effective_from must be the browser's local date, not the DB column's
+    // `current_date` default — Supabase evaluates that in UTC, so anything
+    // saved in the evening in Mexico (behind UTC) would land dated tomorrow
+    // and get filtered out of every report until the next calendar day.
+    await supabase
+      .from('fixed_costs')
+      .insert({ category: category.trim(), amount, effective_from: todayLocalDateString() })
     setFixedCostSaving(false)
     setEditingCategory(null)
     setAddingCategory(false)
