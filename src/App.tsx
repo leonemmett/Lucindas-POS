@@ -15,6 +15,7 @@ import { LowStockDashboard } from './components/LowStockDashboard'
 import { ExpiryDashboard } from './components/ExpiryDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
+import { StocktakesScreen } from './components/StocktakesScreen'
 import { StaffManager } from './components/StaffManager'
 import { SettingsScreen } from './components/SettingsScreen'
 import { Ticket } from './components/Ticket'
@@ -39,6 +40,7 @@ type View =
   | 'expiry'
   | 'cashup'
   | 'reports'
+  | 'stocktakes'
   | 'staff'
   | 'settings'
 
@@ -86,7 +88,7 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'staff', 'settings']
+    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'stocktakes', 'staff', 'settings']
     if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
   }, [view, isAdmin])
 
@@ -370,6 +372,15 @@ function App() {
             {isAdmin && (
               <button
                 type="button"
+                className={view === 'stocktakes' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('stocktakes')}
+              >
+                Stocktakes
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
                 className={view === 'staff' ? 'view-tab active' : 'view-tab'}
                 onClick={() => setView('staff')}
               >
@@ -526,6 +537,12 @@ function App() {
       {view === 'reports' && isAdmin && (
         <main className="app-main">
           <SalesReport menuItems={menuItems} ingredients={ingredients} />
+        </main>
+      )}
+
+      {view === 'stocktakes' && isAdmin && (
+        <main className="app-main">
+          <StocktakesScreen />
         </main>
       )}
 
