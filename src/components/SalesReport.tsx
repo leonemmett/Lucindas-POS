@@ -350,6 +350,21 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
   const netProfit = costMarginTotals.profit - staffConsumptionCost - totalFixedCosts
   const netMarginPct = costMarginTotals.revenue > 0 ? netProfit / costMarginTotals.revenue : 0
 
+  // Break-even: how much revenue per day is needed just to cover fixed
+  // overhead, given the gross margin actually being achieved. Independent of
+  // rangeDays (always a flat 30-day month) — the range only decides which
+  // gross margin % gets applied and which period's actual revenue it's
+  // compared against, so picking "Today" on a single big sale can swing this
+  // — a longer range (e.g. This month) gives a steadier read.
+  const monthlyFixedCosts = useMemo(
+    () => [...currentFixedCostByCategory.values()].reduce((sum, r) => sum + r.amount, 0),
+    [currentFixedCostByCategory],
+  )
+  const dailyFixedCosts = monthlyFixedCosts / 30
+  const dailyBreakEvenRevenue = costMarginTotals.marginPct > 0 ? dailyFixedCosts / costMarginTotals.marginPct : null
+  const avgDailyRevenue = stats.revenue / rangeDays
+  const pctOfBreakEven = dailyBreakEvenRevenue ? (avgDailyRevenue / dailyBreakEvenRevenue) * 100 : null
+
   async function handleSaveFixedCost(category: string, amountStr: string) {
     const amount = Number(amountStr)
     if (!category.trim() || Number.isNaN(amount) || amount < 0) return
@@ -576,6 +591,35 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
             <div className="stat-tile">
               <span className="stat-tile-label">Net margin</span>
               <span className="stat-tile-value">{(netMarginPct * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+
+          <h3>Break-even</h3>
+          <p className="settings-hint">
+            Daily revenue needed just to cover fixed overhead, given the gross margin actually being achieved in the
+            selected range — compare a longer range (e.g. This month) against a single busy or quiet day for a
+            steadier read.
+          </p>
+          <div className="stat-tiles">
+            <div className="stat-tile">
+              <span className="stat-tile-label">Daily fixed costs</span>
+              <span className="stat-tile-value">{currency.format(dailyFixedCosts)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Daily break-even revenue</span>
+              <span className="stat-tile-value">
+                {dailyBreakEvenRevenue !== null ? currency.format(dailyBreakEvenRevenue) : 'N/A'}
+              </span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">Avg daily revenue (this range)</span>
+              <span className="stat-tile-value">{currency.format(avgDailyRevenue)}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-label">% of break-even</span>
+              <span className={`stat-tile-value ${pctOfBreakEven !== null && pctOfBreakEven < 100 ? 'stat-tile-danger' : ''}`}>
+                {pctOfBreakEven !== null ? `${pctOfBreakEven.toFixed(0)}%` : 'N/A'}
+              </span>
             </div>
           </div>
         </section>
