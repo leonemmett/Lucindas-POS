@@ -37,6 +37,10 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
     return [...list].sort((a, b) => {
       if (sortBy === 'name') return (nameById.get(a.ingredient_id) ?? '').localeCompare(nameById.get(b.ingredient_id) ?? '')
       if (sortBy === 'weight') return b.weight_grams - a.weight_grams
+      // Undated containers sort last — they're never urgent.
+      if (!a.expiry_date && !b.expiry_date) return 0
+      if (!a.expiry_date) return 1
+      if (!b.expiry_date) return -1
       return a.expiry_date.localeCompare(b.expiry_date)
     })
   }, [active, filter, search, nameById, amberDays, redDays, sortBy])
@@ -134,7 +138,7 @@ export function ExpiryDashboard({ batches, ingredients, loading, error, onChange
                       <td>{nameById.get(b.ingredient_id) ?? 'Unknown'}</td>
                       <td>{b.weight_grams}</td>
                       <td className={tier === 'red' ? 'ingredient-stock-low' : tier === 'amber' ? 'ingredient-stock-warning' : ''}>
-                        {b.expiry_date}
+                        {b.expiry_date ?? 'No expiry'}
                       </td>
                       <td>{b.received_at.slice(0, 10)}</td>
                       <td>

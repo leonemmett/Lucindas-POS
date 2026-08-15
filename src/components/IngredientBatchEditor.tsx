@@ -37,7 +37,7 @@ export function IngredientBatchEditor({
     const payload = {
       ingredient_id: ingredientId,
       weight_grams: weightGrams,
-      expiry_date: expiryDate,
+      expiry_date: expiryDate || null,
       received_at: new Date(receivedAt).toISOString(),
       note: note.trim() || null,
     }
@@ -115,7 +115,7 @@ export function IngredientBatchEditor({
             />
           </div>
           <div>
-            <label htmlFor="batch-expiry">Expiry date</label>
+            <label htmlFor="batch-expiry">Expiry date (optional)</label>
             <input
               id="batch-expiry"
               type="date"
@@ -159,7 +159,7 @@ export function IngredientBatchEditor({
             type="button"
             className="checkout-confirm"
             onClick={handleSave}
-            disabled={submitting || !ingredientId || !expiryDate || weightGrams <= 0}
+            disabled={submitting || !ingredientId || weightGrams <= 0}
           >
             {submitting ? 'Saving…' : 'Save'}
           </button>

@@ -56,8 +56,8 @@ export function categorizeIngredient(ingredient: Ingredient): IngredientCategory
 // ingredients lists by expiry without duplicating the batch lookup per call site.
 export function earliestExpiry(ingredientId: string, batches: IngredientBatch[]): string | null {
   const dates = batches
-    .filter((b) => b.ingredient_id === ingredientId && !isEmptied(b))
-    .map((b) => b.expiry_date)
+    .filter((b) => b.ingredient_id === ingredientId && !isEmptied(b) && b.expiry_date)
+    .map((b) => b.expiry_date as string)
     .sort()
   return dates[0] ?? null
 }
@@ -94,7 +94,9 @@ export type ExpiryTier = 'red' | 'amber' | 'ok'
 
 // Applies to any ingredient with tracked containers, gelato or otherwise —
 // red (already expired or expiring within redDays) always outranks amber.
+// A container with no expiry date (daily-delivery items) never alerts.
 export function expiryTier(batch: IngredientBatch, amberDays: number, redDays: number): ExpiryTier {
+  if (!batch.expiry_date) return 'ok'
   const days = daysUntil(batch.expiry_date)
   if (days <= redDays) return 'red'
   if (days <= amberDays) return 'amber'

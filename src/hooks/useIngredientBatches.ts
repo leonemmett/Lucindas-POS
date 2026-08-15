@@ -12,7 +12,7 @@ export function useIngredientBatches() {
     const { data, error } = await supabase
       .from('ingredient_batches')
       .select('*')
-      .order('expiry_date', { ascending: true })
+      .order('expiry_date', { ascending: true, nullsFirst: false })
     if (error) {
       setError(error.message)
     } else {

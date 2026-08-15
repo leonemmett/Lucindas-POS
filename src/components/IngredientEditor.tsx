@@ -186,11 +186,11 @@ export function IngredientEditor({
                 <tbody>
                   {activeBatches
                     .slice()
-                    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
+                    .sort((a, b) => (a.expiry_date ?? '9999').localeCompare(b.expiry_date ?? '9999'))
                     .map((b) => (
                       <tr key={b.id}>
                         <td>{b.weight_grams}</td>
-                        <td>{b.expiry_date}</td>
+                        <td>{b.expiry_date ?? 'No expiry'}</td>
                         <td>
                           <button type="button" className="menu-manager-edit" onClick={() => setEditingBatch(b)}>
                             Edit

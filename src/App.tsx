@@ -16,6 +16,7 @@ import { ExpiryDashboard } from './components/ExpiryDashboard'
 import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
 import { StocktakesScreen } from './components/StocktakesScreen'
+import { ReceiveDeliveryScreen } from './components/ReceiveDeliveryScreen'
 import { StaffManager } from './components/StaffManager'
 import { SettingsScreen } from './components/SettingsScreen'
 import { Ticket } from './components/Ticket'
@@ -38,6 +39,7 @@ type View =
   | 'tables'
   | 'low-stock'
   | 'expiry'
+  | 'receive'
   | 'cashup'
   | 'reports'
   | 'stocktakes'
@@ -354,6 +356,13 @@ function App() {
             )}
             <button
               type="button"
+              className={view === 'receive' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('receive')}
+            >
+              Receive
+            </button>
+            <button
+              type="button"
               className={view === 'expiry' ? 'view-tab active' : 'view-tab'}
               onClick={() => setView('expiry')}
             >
@@ -500,6 +509,22 @@ function App() {
       {view === 'low-stock' && isAdmin && (
         <main className="app-main">
           <LowStockDashboard
+            ingredients={ingredients}
+            batches={batches}
+            loading={ingredientsLoading}
+            error={ingredientsError}
+            onChanged={refetchIngredients}
+            onBatchesChanged={() => {
+              refetchIngredientBatches()
+              refetchIngredients()
+            }}
+          />
+        </main>
+      )}
+
+      {view === 'receive' && (
+        <main className="app-main">
+          <ReceiveDeliveryScreen
             ingredients={ingredients}
             batches={batches}
             loading={ingredientsLoading}

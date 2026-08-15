@@ -41,7 +41,7 @@ export type IngredientBatch = {
   id: string
   ingredient_id: string
   weight_grams: number
-  expiry_date: string
+  expiry_date: string | null // null = no expiry tracked (e.g. daily bakery deliveries)
   received_at: string
   emptied_at: string | null
   note: string | null
