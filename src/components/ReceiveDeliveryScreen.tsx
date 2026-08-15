@@ -11,7 +11,14 @@ type ReceiveDeliveryScreenProps = {
   onBatchesChanged: () => void
 }
 
-type Received = { name: string; amount: number; unit: string; newTotal: number }
+type Received = { name: string; amount: number; unit: string; newTotal: number; isNew?: boolean }
+
+const UNITS = [
+  { value: 'pcs', label: 'Pieces' },
+  { value: 'g', label: 'Grams (g)' },
+  { value: 'ml', label: 'Millilitres (ml)' },
+  { value: 'bag', label: 'Bags' },
+]
 
 export function ReceiveDeliveryScreen({
   ingredients,
@@ -29,6 +36,11 @@ export function ReceiveDeliveryScreen({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [recent, setRecent] = useState<Received[]>([])
 
+  const [addingNew, setAddingNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newUnit, setNewUnit] = useState('pcs')
+  const [newCost, setNewCost] = useState('')
+
   const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
 
   const visible = useMemo(() => {
@@ -44,6 +56,81 @@ export function ReceiveDeliveryScreen({
     setAmount('')
     setExpiryDate('')
     setSubmitError(null)
+    setAddingNew(false)
+    setNewName('')
+    setNewUnit('pcs')
+    setNewCost('')
+  }
+
+  async function handleCreateAndReceive() {
+    const name = newName.trim()
+    const qty = Number(amount)
+    if (!name) {
+      setSubmitError('Give the new item a name.')
+      return
+    }
+    if (Number.isNaN(qty) || qty <= 0) {
+      setSubmitError('Enter how many arrived.')
+      return
+    }
+    if (ingredients.some((i) => i.name.toLowerCase() === name.toLowerCase())) {
+      setSubmitError(`"${name}" already exists — search for it in the list instead of adding a duplicate.`)
+      return
+    }
+    const cost = newCost.trim() ? Number(newCost) : 0
+    if (Number.isNaN(cost) || cost < 0) {
+      setSubmitError('Cost must be a number.')
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitError(null)
+
+    // low_threshold 0 means "don't alert on this" (see lib/inventory.ts) —
+    // the right default for something brand new, since nobody has decided
+    // yet what a sensible reorder level is. An admin can set one later.
+    const { data: created, error: createError } = await supabase
+      .from('ingredients')
+      .insert({
+        name,
+        unit: newUnit,
+        stock: expiryDate ? 0 : qty,
+        low_threshold: 0,
+        cost_per_unit: cost,
+        is_flavour: false,
+        is_container: false,
+      })
+      .select()
+      .single()
+
+    if (createError) {
+      setSubmitting(false)
+      setSubmitError(createError.message)
+      return
+    }
+
+    // With an expiry date the quantity belongs on a batch row instead, and
+    // the sync trigger derives stock from it — hence stock: 0 above, so the
+    // amount isn't counted twice.
+    if (expiryDate) {
+      const { error: batchError } = await supabase.from('ingredient_batches').insert({
+        ingredient_id: created.id,
+        weight_grams: qty,
+        expiry_date: expiryDate,
+      })
+      if (batchError) {
+        setSubmitting(false)
+        setSubmitError(batchError.message)
+        return
+      }
+      onBatchesChanged()
+    } else {
+      onChanged()
+    }
+
+    setRecent((prev) => [{ name, amount: qty, unit: newUnit, newTotal: qty, isNew: true }, ...prev])
+    setSubmitting(false)
+    resetForm()
   }
 
   async function handleReceive() {
@@ -150,14 +237,14 @@ export function ReceiveDeliveryScreen({
                   <li key={i}>
                     {r.name}: +{r.amount}
                     {r.unit === 'pcs' ? '' : r.unit} (now {r.newTotal}
-                    {r.unit === 'pcs' ? ` ${r.unit}` : r.unit})
+                    {r.unit === 'pcs' ? ` ${r.unit}` : r.unit}){r.isNew ? ' — new item' : ''}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {!selected && (
+          {!selected && !addingNew && (
             <>
               <div className="ingredient-toolbar">
                 <input
@@ -167,10 +254,25 @@ export function ReceiveDeliveryScreen({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+                <button
+                  type="button"
+                  className="menu-manager-add"
+                  onClick={() => {
+                    setAddingNew(true)
+                    setNewName(search.trim())
+                    setAmount('')
+                    setExpiryDate('')
+                    setSubmitError(null)
+                  }}
+                >
+                  + New item
+                </button>
               </div>
 
               {visible.length === 0 ? (
-                <div className="menu-grid-status">No ingredients match.</div>
+                <div className="menu-grid-status">
+                  Nothing matches "{search.trim()}" — use "+ New item" if this is something you've never had before.
+                </div>
               ) : (
                 <table className="menu-manager-table">
                   <thead>
@@ -207,6 +309,89 @@ export function ReceiveDeliveryScreen({
                 </table>
               )}
             </>
+          )}
+
+          {addingNew && (
+            <section className="cashup-section">
+              <h3>New item</h3>
+              <p className="settings-hint">
+                For something the shop has never stocked before. It'll be created and this delivery added straight
+                away — an admin can set a low-stock alert level or link it to a menu item's recipe afterwards.
+              </p>
+
+              <label htmlFor="new-name">Name</label>
+              <input
+                id="new-name"
+                type="text"
+                className="fixed-cost-input"
+                placeholder="e.g. Pistachio Paste"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                autoFocus
+              />
+
+              <label htmlFor="new-unit">Measured in</label>
+              <select
+                id="new-unit"
+                className="fixed-cost-input"
+                value={newUnit}
+                onChange={(e) => setNewUnit(e.target.value)}
+              >
+                {UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+
+              <label htmlFor="new-amount">
+                How many arrived? ({newUnit === 'pcs' ? 'pieces' : newUnit})
+              </label>
+              <input
+                id="new-amount"
+                type="number"
+                inputMode="decimal"
+                className="fixed-cost-input"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+
+              <label htmlFor="new-cost">Cost per {newUnit === 'pcs' ? 'piece' : newUnit} (optional)</label>
+              <input
+                id="new-cost"
+                type="number"
+                inputMode="decimal"
+                className="fixed-cost-input"
+                placeholder="0.00"
+                value={newCost}
+                onChange={(e) => setNewCost(e.target.value)}
+              />
+
+              <label htmlFor="new-expiry">Expiry date (optional)</label>
+              <input
+                id="new-expiry"
+                type="date"
+                className="fixed-cost-input"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+
+              {submitError && <p className="checkout-error">{submitError}</p>}
+
+              <div className="checkout-actions">
+                <button type="button" className="checkout-cancel" onClick={resetForm} disabled={submitting}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="checkout-confirm"
+                  onClick={handleCreateAndReceive}
+                  disabled={submitting || !newName.trim() || !amount}
+                >
+                  {submitting ? 'Adding…' : 'Create & add to stock'}
+                </button>
+              </div>
+            </section>
           )}
 
           {selected && (
