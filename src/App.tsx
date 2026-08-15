@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { useAuth } from './lib/AuthContext'
 import { useMenuItems } from './hooks/useMenuItems'
@@ -17,6 +17,9 @@ import { CashupsScreen } from './components/CashupsScreen'
 import { SalesReport } from './components/SalesReport'
 import { StocktakesScreen } from './components/StocktakesScreen'
 import { ReceiveDeliveryScreen } from './components/ReceiveDeliveryScreen'
+import { DataHealthScreen } from './components/DataHealthScreen'
+import { findDataIssues } from './lib/dataHealth'
+import { useDataIssueDismissals } from './hooks/useDataIssueDismissals'
 import { StaffManager } from './components/StaffManager'
 import { SettingsScreen } from './components/SettingsScreen'
 import { Ticket } from './components/Ticket'
@@ -43,6 +46,7 @@ type View =
   | 'cashup'
   | 'reports'
   | 'stocktakes'
+  | 'alerts'
   | 'staff'
   | 'settings'
 
@@ -69,6 +73,22 @@ function App() {
     saveRedDays: saveExpiryRedDays,
   } = useExpiryAlertThresholds()
   const { popularity } = useItemPopularity()
+  const {
+    dismissedKeys: dismissedIssueKeys,
+    loading: dismissalsLoading,
+    dismiss: dismissIssue,
+    restore: restoreIssue,
+  } = useDataIssueDismissals()
+
+  // Badge counts only the "needs fixing" tier, so warnings and anything
+  // deliberately ignored don't leave a permanent marker in the nav.
+  const openIssueCount = useMemo(
+    () =>
+      findDataIssues(menuItems, ingredients).filter(
+        (i) => i.severity === 'error' && !dismissedIssueKeys.has(i.key),
+      ).length,
+    [menuItems, ingredients, dismissedIssueKeys],
+  )
 
   const lowStockCount = ingredients.filter(isLowStock).length
   const activeBatches = batches.filter((b) => !b.emptied_at)
@@ -90,7 +110,16 @@ function App() {
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
 
   useEffect(() => {
-    const adminOnlyViews: View[] = ['menu', 'ingredients', 'low-stock', 'reports', 'stocktakes', 'staff', 'settings']
+    const adminOnlyViews: View[] = [
+      'menu',
+      'ingredients',
+      'low-stock',
+      'reports',
+      'stocktakes',
+      'alerts',
+      'staff',
+      'settings',
+    ]
     if (adminOnlyViews.includes(view) && !isAdmin) setView('pos')
   }, [view, isAdmin])
 
@@ -390,6 +419,16 @@ function App() {
             {isAdmin && (
               <button
                 type="button"
+                className={view === 'alerts' ? 'view-tab active' : 'view-tab'}
+                onClick={() => setView('alerts')}
+              >
+                Alerts
+                {openIssueCount > 0 && <span className="nav-badge">{openIssueCount}</span>}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
                 className={view === 'staff' ? 'view-tab active' : 'view-tab'}
                 onClick={() => setView('staff')}
               >
@@ -568,6 +607,21 @@ function App() {
       {view === 'stocktakes' && isAdmin && (
         <main className="app-main">
           <StocktakesScreen />
+        </main>
+      )}
+
+      {view === 'alerts' && isAdmin && (
+        <main className="app-main">
+          <DataHealthScreen
+            menuItems={menuItems}
+            ingredients={ingredients}
+            loading={menuLoading || ingredientsLoading}
+            error={menuError ?? ingredientsError}
+            dismissedKeys={dismissedIssueKeys}
+            dismissalsLoading={dismissalsLoading}
+            onDismiss={dismissIssue}
+            onRestore={restoreIssue}
+          />
         </main>
       )}
 
