@@ -14,6 +14,12 @@ type LowStockDashboardProps = {
   error: string | null
   onChanged: () => void
   onBatchesChanged: () => void
+  snoozedIds: Set<string>
+  snoozes: Map<string, string>
+  snoozesLoading: boolean
+  snoozeDays: number
+  onSnooze: (ingredientId: string) => void
+  onUnsnooze: (ingredientId: string) => void
 }
 
 export function LowStockDashboard({
@@ -23,15 +29,37 @@ export function LowStockDashboard({
   error,
   onChanged,
   onBatchesChanged,
+  snoozedIds,
+  snoozes,
+  snoozesLoading,
+  snoozeDays,
+  onSnooze,
+  onUnsnooze,
 }: LowStockDashboardProps) {
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null | undefined>(undefined)
   const [restockingBatchFor, setRestockingBatchFor] = useState<Ingredient | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [sortBy, setSortBy] = useState<SortBy>('urgency')
+  const [showSnoozed, setShowSnoozed] = useState(false)
 
   const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
 
-  const allLow = useMemo(() => ingredients.filter(isLowStock), [ingredients])
+  const allLowIncludingSnoozed = useMemo(() => ingredients.filter(isLowStock), [ingredients])
+  const allLow = useMemo(
+    () => allLowIncludingSnoozed.filter((i) => !snoozedIds.has(i.id)),
+    [allLowIncludingSnoozed, snoozedIds],
+  )
+  const snoozedLow = useMemo(
+    () => allLowIncludingSnoozed.filter((i) => snoozedIds.has(i.id)),
+    [allLowIncludingSnoozed, snoozedIds],
+  )
+
+  function daysLeft(ingredientId: string) {
+    const dismissedAt = snoozes.get(ingredientId)
+    if (!dismissedAt) return snoozeDays
+    const elapsedDays = (Date.now() - new Date(dismissedAt).getTime()) / (24 * 60 * 60 * 1000)
+    return Math.max(0, Math.ceil(snoozeDays - elapsedDays))
+  }
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -86,6 +114,7 @@ export function LowStockDashboard({
   }
 
   const totalLow = outOfStock.length + runningLow.length
+  const busy = loading || snoozesLoading
 
   return (
     <div className="menu-manager">
@@ -93,9 +122,14 @@ export function LowStockDashboard({
         <h2>Low stock</h2>
       </div>
 
-      {loading && <div className="menu-grid-status">Loading…</div>}
+      <p className="settings-hint">
+        Snooze anything you don't want to restock right now — it drops off this list for {snoozeDays} days, then
+        reappears on its own if it's still low.
+      </p>
 
-      {!loading && error && (
+      {busy && <div className="menu-grid-status">Loading…</div>}
+
+      {!busy && error && (
         <div className="menu-grid-status menu-grid-error">
           Failed to load ingredients: {error}
           <button type="button" className="menu-manager-add" onClick={onChanged}>
@@ -104,11 +138,11 @@ export function LowStockDashboard({
         </div>
       )}
 
-      {!loading && !error && allLow.length === 0 && (
+      {!busy && !error && allLow.length === 0 && (
         <div className="menu-grid-status">Everything's stocked up.</div>
       )}
 
-      {!loading && !error && allLow.length > 0 && (
+      {!busy && !error && allLow.length > 0 && (
         <div className="category-tabs">
           <button
             type="button"
@@ -139,11 +173,11 @@ export function LowStockDashboard({
         </div>
       )}
 
-      {!loading && !error && allLow.length > 0 && totalLow === 0 && (
+      {!busy && !error && allLow.length > 0 && totalLow === 0 && (
         <div className="menu-grid-status">Nothing low in this category.</div>
       )}
 
-      {!loading && !error && outOfStock.length > 0 && (
+      {!busy && !error && outOfStock.length > 0 && (
         <>
           <h3 className="low-stock-section-title low-stock-out">Out of stock ({outOfStock.length})</h3>
           <table className="menu-manager-table">
@@ -163,9 +197,12 @@ export function LowStockDashboard({
                   <td className="ingredient-stock-low">{ing.stock}</td>
                   <td>{ing.low_threshold}</td>
                   <td>{ing.unit}</td>
-                  <td>
+                  <td className="low-stock-actions">
                     <button type="button" className="menu-manager-edit" onClick={() => handleRestock(ing)}>
                       Restock
+                    </button>
+                    <button type="button" className="menu-manager-edit" onClick={() => onSnooze(ing.id)}>
+                      Snooze
                     </button>
                   </td>
                 </tr>
@@ -175,7 +212,7 @@ export function LowStockDashboard({
         </>
       )}
 
-      {!loading && !error && runningLow.length > 0 && (
+      {!busy && !error && runningLow.length > 0 && (
         <>
           <h3 className="low-stock-section-title low-stock-warning">Running low ({runningLow.length})</h3>
           <table className="menu-manager-table">
@@ -195,15 +232,57 @@ export function LowStockDashboard({
                   <td className="ingredient-stock-warning">{ing.stock}</td>
                   <td>{ing.low_threshold}</td>
                   <td>{ing.unit}</td>
-                  <td>
+                  <td className="low-stock-actions">
                     <button type="button" className="menu-manager-edit" onClick={() => handleRestock(ing)}>
                       Restock
+                    </button>
+                    <button type="button" className="menu-manager-edit" onClick={() => onSnooze(ing.id)}>
+                      Snooze
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </>
+      )}
+
+      {!busy && !error && snoozedLow.length > 0 && (
+        <>
+          <button type="button" className="menu-manager-edit" onClick={() => setShowSnoozed((prev) => !prev)}>
+            {showSnoozed ? 'Hide' : 'Show'} snoozed ({snoozedLow.length})
+          </button>
+
+          {showSnoozed && (
+            <table className="menu-manager-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Stock</th>
+                  <th>Threshold</th>
+                  <th>Reappears in</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {snoozedLow.map((ing) => (
+                  <tr key={ing.id}>
+                    <td>{ing.name}</td>
+                    <td>
+                      {ing.stock} {ing.unit}
+                    </td>
+                    <td>{ing.low_threshold}</td>
+                    <td>{daysLeft(ing.id)} day{daysLeft(ing.id) === 1 ? '' : 's'}</td>
+                    <td>
+                      <button type="button" className="menu-manager-edit" onClick={() => onUnsnooze(ing.id)}>
+                        Un-snooze
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </>
       )}
 

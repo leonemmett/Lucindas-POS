@@ -755,6 +755,11 @@
   font-size: 13px;
 }
 
+.low-stock-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .menu-manager-delete {
   padding: 6px 12px;
   border: 1px solid var(--danger);
@@ -1304,6 +1309,13 @@
   background: var(--bg);
   color: var(--text-h);
   width: 120px;
+}
+
+/* date inputs render a fixed dd/mm/yyyy segment layout that doesn't fit the
+   120px default — the year clips to 3 digits even though the stored value
+   is unaffected, misleading anyone reading it back at a glance */
+.fixed-cost-input[type='date'] {
+  width: 160px;
 }
 
 .report-sale-voided td {

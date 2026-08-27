@@ -20,6 +20,7 @@ import { ReceiveDeliveryScreen } from './components/ReceiveDeliveryScreen'
 import { DataHealthScreen } from './components/DataHealthScreen'
 import { findDataIssues } from './lib/dataHealth'
 import { useDataIssueDismissals } from './hooks/useDataIssueDismissals'
+import { useLowStockSnoozes } from './hooks/useLowStockSnoozes'
 import { StaffManager } from './components/StaffManager'
 import { SettingsScreen } from './components/SettingsScreen'
 import { Ticket } from './components/Ticket'
@@ -61,7 +62,7 @@ function App() {
     refetch: refetchIngredientBatches,
   } = useIngredientBatches()
   const { tables, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useTables()
-  const { isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
+  const { staffId, isAdmin, active, loaded: staffLoaded } = useCurrentStaff()
   const { staff, loading: staffLoading, error: staffError, refetch: refetchStaff } = useStaff()
   const { enabled: receiptsEnabled, loading: receiptsLoading, save: saveReceiptsEnabled } = useReceiptsEnabled()
   const gramsPerBall = useGramsPerBall()
@@ -79,6 +80,14 @@ function App() {
     dismiss: dismissIssue,
     restore: restoreIssue,
   } = useDataIssueDismissals()
+  const {
+    snoozedIds: lowStockSnoozedIds,
+    snoozes: lowStockSnoozes,
+    loading: lowStockSnoozesLoading,
+    snooze: snoozeLowStock,
+    unsnooze: unsnoozeLowStock,
+    snoozeDays: lowStockSnoozeDays,
+  } = useLowStockSnoozes()
 
   // Badge counts only the "needs fixing" tier, so warnings and anything
   // deliberately ignored don't leave a permanent marker in the nav.
@@ -557,6 +566,12 @@ function App() {
               refetchIngredientBatches()
               refetchIngredients()
             }}
+            snoozedIds={lowStockSnoozedIds}
+            snoozes={lowStockSnoozes}
+            snoozesLoading={lowStockSnoozesLoading}
+            snoozeDays={lowStockSnoozeDays}
+            onSnooze={(ingredientId) => snoozeLowStock(ingredientId, staffId)}
+            onUnsnooze={unsnoozeLowStock}
           />
         </main>
       )}
