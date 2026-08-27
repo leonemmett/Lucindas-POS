@@ -77,6 +77,34 @@ export function IngredientEditor({
     onSaved()
   }
 
+  async function handleDiscontinue() {
+    if (!ingredient) return
+    const stockNote =
+      ingredient.stock > 0 ? ` It still has ${ingredient.stock}${ingredient.unit} in stock.` : ''
+    if (
+      !confirm(
+        `Discontinue "${ingredient.name}"?${stockNote} It'll drop off the flavour picker and stop raising low-stock alerts, but its sales/cost history stays intact.`,
+      )
+    ) {
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+    const { error } = await supabase
+      .from('ingredients')
+      .update({ is_flavour: false, low_threshold: 0, updated_at: new Date().toISOString() })
+      .eq('id', ingredient.id)
+    setSubmitting(false)
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    onSaved()
+  }
+
   async function handleDelete() {
     if (!ingredient) return
     if (!confirm(`Delete "${ingredient.name}"? This can't be undone.`)) return
@@ -207,6 +235,11 @@ export function IngredientEditor({
         {error && <p className="checkout-error">{error}</p>}
 
         <div className="checkout-actions">
+          {ingredient && ingredient.is_flavour && (
+            <button type="button" className="menu-manager-edit" onClick={handleDiscontinue} disabled={submitting}>
+              Discontinue
+            </button>
+          )}
           {ingredient && (
             <button type="button" className="menu-editor-delete" onClick={handleDelete} disabled={submitting}>
               Delete
