@@ -33,6 +33,7 @@ import { useExpiryAlertThresholds } from './hooks/useExpiryAlertThresholds'
 import { useItemPopularity } from './hooks/useItemPopularity'
 import { isLowStock, expiryTier } from './lib/inventory'
 import { nextTableNumber, tableNameForNumber } from './lib/constants'
+import { readActiveTicketDraft, writeActiveTicketDraft } from './lib/activeTicketDraft'
 import type { FlavorSelection, MenuItem, OpenTicketItem, TicketLine } from './lib/types'
 import './App.css'
 
@@ -114,6 +115,7 @@ function App() {
   const [saleComplete, setSaleComplete] = useState(false)
   const [addingTable, setAddingTable] = useState(false)
   const [staffLoginOpen, setStaffLoginOpen] = useState(false)
+  const [draftHydrated, setDraftHydrated] = useState(false)
 
   const subtotal = lines.reduce((sum, line) => sum + line.menuItem.price * line.qty, 0)
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.name ?? null
@@ -160,6 +162,14 @@ function App() {
     })
   }
 
+  function toOpenTicketItems(currentLines: TicketLine[]): OpenTicketItem[] {
+    return currentLines.map((line) => ({
+      menu_item_id: line.menuItem.id,
+      qty: line.qty,
+      flavors: line.flavors,
+    }))
+  }
+
   async function refreshOccupiedTables() {
     const { data } = await supabase.from('open_tickets').select('table_id')
     setOccupiedTableIds(new Set((data ?? []).map((row) => row.table_id as string)))
@@ -172,14 +182,14 @@ function App() {
   async function persistTable(tableId: string, currentLines: TicketLine[]) {
     // A table only closes via explicit checkout (handleCheckoutComplete) — an
     // empty cart here just means "opened but nothing ordered yet", not closed.
-    const items: OpenTicketItem[] = currentLines.map((line) => ({
-      menu_item_id: line.menuItem.id,
-      qty: line.qty,
-      flavors: line.flavors,
-    }))
-    await supabase
+    const { error } = await supabase
       .from('open_tickets')
-      .upsert({ table_id: tableId, items, updated_at: new Date().toISOString() })
+      .upsert({ table_id: tableId, items: toOpenTicketItems(currentLines), updated_at: new Date().toISOString() })
+    if (error) {
+      // Likely offline (Wi-Fi/power cut) — the local draft below still has
+      // this order, and the online-retry effect will push it once back.
+      console.warn('Failed to sync table order to Supabase, will retry when back online:', error.message)
+    }
   }
 
   // Autosave the active table's ticket so it survives a refresh without requiring a table switch.
@@ -190,6 +200,39 @@ function App() {
     }, 600)
     return () => clearTimeout(timeout)
   }, [lines, selectedTableId])
+
+  // One-time recovery of whatever cart was in progress on this device, in
+  // case the browser/tablet reloaded or restarted (e.g. a power cut) before
+  // the debounced Supabase autosave above had a chance to run. The draft
+  // carries a full menu-item snapshot per line, so this doesn't need the
+  // menu catalog to have loaded (or even be reachable) yet.
+  useEffect(() => {
+    const draft = readActiveTicketDraft()
+    if (draft && draft.lines.length > 0) {
+      setSelectedTableId(draft.tableId)
+      setLines(draft.lines.map((line) => ({ key: crypto.randomUUID(), ...line })))
+    }
+    setDraftHydrated(true)
+  }, [])
+
+  // Mirror the active cart to localStorage on every change — synchronous and
+  // needs no network, so it survives a reload/restart even when Wi-Fi/power
+  // cuts out before the debounced Supabase autosave above completes.
+  useEffect(() => {
+    if (!draftHydrated) return
+    writeActiveTicketDraft(selectedTableId, lines)
+  }, [draftHydrated, lines, selectedTableId])
+
+  // Once connectivity returns, push whatever's currently in the cart to
+  // Supabase right away rather than waiting for the next edit to trigger it.
+  useEffect(() => {
+    function handleOnline() {
+      if (!selectedTableId) return
+      persistTable(selectedTableId, lines).then(refreshOccupiedTables)
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [selectedTableId, lines])
 
   async function handleSelectTable(tableId: string | null) {
     if (tableId === selectedTableId || tableSwitching) return
