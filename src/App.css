@@ -1437,6 +1437,50 @@
   margin-top: 8px;
 }
 
+.send-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.send-receipt label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.send-receipt input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.send-receipt-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.send-receipt-actions button {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.send-receipt-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media print {
   body * {
     visibility: hidden;

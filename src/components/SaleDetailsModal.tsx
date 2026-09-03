@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useCardLabels } from '../hooks/useCardLabels'
 import { paymentLabel } from '../lib/payments'
+import { formatReceiptText } from '../lib/receiptText'
+import { SendReceiptControls } from './SendReceiptControls'
 import { VoidSaleModal } from './VoidSaleModal'
 import type { Sale } from '../lib/types'
 
@@ -85,6 +87,21 @@ export function SaleDetailsModal({ sale, staffNames, onClose, onVoided }: SaleDe
             </div>
           )}
         </div>
+
+        {!sale.voided_at && (
+          <SendReceiptControls
+            receiptText={formatReceiptText({
+              ts: new Date(sale.ts),
+              tableName: sale.table_name,
+              items: sale.items,
+              subtotal: sale.subtotal,
+              discountPercent: sale.discount_percent,
+              discountAmount: sale.discount_amount,
+              total: sale.total,
+              paymentLabel: paymentLabel(sale.payment, card1Label, card2Label),
+            })}
+          />
+        )}
 
         <div className="checkout-actions">
           {!sale.voided_at && (
