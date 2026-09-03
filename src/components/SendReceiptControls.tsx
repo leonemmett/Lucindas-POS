@@ -1,24 +1,52 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { formatReceiptText } from '../lib/receiptText'
+import { generateReceiptPdf } from '../lib/receiptPdf'
+import { uploadReceiptPdf } from '../lib/receiptStorage'
+import type { ReceiptContent } from '../lib/receiptContent'
+
+const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
 type SendReceiptControlsProps = {
-  receiptText: string
-  emailSubject?: string
+  receipt: ReceiptContent
 }
 
-export function SendReceiptControls({ receiptText, emailSubject = "Lucinda's — your receipt" }: SendReceiptControlsProps) {
+export function SendReceiptControls({ receipt }: SendReceiptControlsProps) {
   const [contact, setContact] = useState('')
-  const trimmed = contact.trim()
+  const [preparing, setPreparing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const pdfUrlRef = useRef<string | null>(null)
 
-  function handleWhatsApp() {
-    const digits = trimmed.replace(/[^\d]/g, '')
-    if (!digits) return
-    window.open(`https://wa.me/${digits}?text=${encodeURIComponent(receiptText)}`, '_blank', 'noopener,noreferrer')
+  async function getMessage(): Promise<string> {
+    if (pdfUrlRef.current) {
+      return `Thanks for visiting Lucinda's! Here's your receipt (${currency.format(receipt.total)}): ${pdfUrlRef.current}`
+    }
+    try {
+      const blob = await generateReceiptPdf(receipt)
+      const url = await uploadReceiptPdf(blob)
+      pdfUrlRef.current = url
+      setError(null)
+      return `Thanks for visiting Lucinda's! Here's your receipt (${currency.format(receipt.total)}): ${url}`
+    } catch {
+      setError("Couldn't attach a PDF (offline?) — sent as text instead.")
+      return formatReceiptText(receipt)
+    }
   }
 
-  function handleEmail() {
+  async function handleSend(kind: 'whatsapp' | 'email') {
+    const trimmed = contact.trim()
     if (!trimmed) return
-    const to = trimmed.replace(/\s+/g, '')
-    window.location.href = `mailto:${to}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(receiptText)}`
+    setPreparing(true)
+    const message = await getMessage()
+    setPreparing(false)
+
+    if (kind === 'whatsapp') {
+      const digits = trimmed.replace(/[^\d]/g, '')
+      if (!digits) return
+      window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+    } else {
+      const to = trimmed.replace(/\s+/g, '')
+      window.location.href = `mailto:${to}?subject=${encodeURIComponent("Lucinda's — your receipt")}&body=${encodeURIComponent(message)}`
+    }
   }
 
   return (
@@ -32,13 +60,14 @@ export function SendReceiptControls({ receiptText, emailSubject = "Lucinda's —
         onChange={(e) => setContact(e.target.value)}
       />
       <div className="send-receipt-actions">
-        <button type="button" onClick={handleWhatsApp} disabled={!trimmed}>
-          WhatsApp
+        <button type="button" onClick={() => handleSend('whatsapp')} disabled={!contact.trim() || preparing}>
+          {preparing ? 'Preparing…' : 'WhatsApp'}
         </button>
-        <button type="button" onClick={handleEmail} disabled={!trimmed}>
-          Email
+        <button type="button" onClick={() => handleSend('email')} disabled={!contact.trim() || preparing}>
+          {preparing ? 'Preparing…' : 'Email'}
         </button>
       </div>
+      {error && <p className="checkout-error">{error}</p>}
     </div>
   )
 }

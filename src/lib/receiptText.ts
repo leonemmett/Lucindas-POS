@@ -1,23 +1,16 @@
-import type { SaleItem } from './types'
+import type { ReceiptContent } from './receiptContent'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
-export type ReceiptTextInput = {
-  ts: Date
-  tableName: string | null
-  items: SaleItem[]
-  subtotal: number
-  discountPercent: number
-  discountAmount: number
-  total: number
-  paymentLabel: string
-}
-
-export function formatReceiptText(input: ReceiptTextInput): string {
+// Plain-text fallback for when a branded PDF can't be generated/uploaded
+// (e.g. offline) — still usable as a WhatsApp message or email body.
+export function formatReceiptText(input: ReceiptContent): string {
   const lines: string[] = []
   lines.push(`Lucinda's`)
   lines.push(input.ts.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }))
-  lines.push(input.tableName ?? 'Counter')
+  lines.push(
+    `${input.tableName ?? 'Counter'} · ${input.customers} guest${input.customers === 1 ? '' : 's'}`,
+  )
   lines.push('')
 
   for (const item of input.items) {

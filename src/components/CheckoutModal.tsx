@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabaseClient'
 import { useCardLabels } from '../hooks/useCardLabels'
 import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { paymentLabel } from '../lib/payments'
-import { formatReceiptText } from '../lib/receiptText'
 import { Receipt } from './Receipt'
 import { SendReceiptControls } from './SendReceiptControls'
 import type { PaymentMethod, SaleItem, TicketLine } from '../lib/types'
@@ -132,16 +131,17 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
             changeDue={completedSale.payment === 'cash' ? completedSale.changeDue : undefined}
           />
           <SendReceiptControls
-            receiptText={formatReceiptText({
+            receipt={{
               ts: completedSale.ts,
               tableName,
+              customers,
               items: completedSale.items,
               subtotal: completedSale.subtotal,
               discountPercent: completedSale.discountPercent,
               discountAmount: completedSale.discountAmount,
               total: completedSale.total,
               paymentLabel: paymentLabel(completedSale.payment, card1Label, card2Label),
-            })}
+            }}
           />
           <div className="checkout-actions no-print">
             <button type="button" className="checkout-cancel" onClick={() => window.print()}>
