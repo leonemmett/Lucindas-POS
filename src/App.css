@@ -1481,6 +1481,11 @@
   cursor: default;
 }
 
+.send-receipt-hint {
+  font-size: 12px;
+  color: var(--text);
+}
+
 @media print {
   body * {
     visibility: hidden;

@@ -67,6 +67,10 @@ export function SendReceiptControls({ receipt }: SendReceiptControlsProps) {
           {preparing ? 'Preparing…' : 'Email'}
         </button>
       </div>
+      <p className="send-receipt-hint">
+        WhatsApp opens whichever app this device treats as default for wa.me links — check this device's
+        settings if it should always be WhatsApp Business.
+      </p>
       {error && <p className="checkout-error">{error}</p>}
     </div>
   )
