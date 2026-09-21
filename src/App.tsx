@@ -124,7 +124,6 @@ function App() {
     const adminOnlyViews: View[] = [
       'menu',
       'ingredients',
-      'low-stock',
       'reports',
       'stocktakes',
       'alerts',
@@ -425,16 +424,14 @@ function App() {
                 Ingredients
               </button>
             )}
-            {isAdmin && (
-              <button
-                type="button"
-                className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
-                onClick={() => setView('low-stock')}
-              >
-                Low stock
-                {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
-              </button>
-            )}
+            <button
+              type="button"
+              className={view === 'low-stock' ? 'view-tab active' : 'view-tab'}
+              onClick={() => setView('low-stock')}
+            >
+              Low stock
+              {lowStockCount > 0 && <span className="nav-badge">{lowStockCount}</span>}
+            </button>
             <button
               type="button"
               className={view === 'receive' ? 'view-tab active' : 'view-tab'}
@@ -597,7 +594,7 @@ function App() {
         </main>
       )}
 
-      {view === 'low-stock' && isAdmin && (
+      {view === 'low-stock' && (
         <main className="app-main">
           <LowStockDashboard
             ingredients={ingredients}
