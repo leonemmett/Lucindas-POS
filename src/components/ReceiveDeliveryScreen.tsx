@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { IngredientBatchEditor } from './IngredientBatchEditor'
+import { categorizeIngredient, INGREDIENT_CATEGORIES } from '../lib/inventory'
 import type { Ingredient, IngredientBatch, MenuItem } from '../lib/types'
 
 type ReceiveDeliveryScreenProps = {
@@ -51,11 +52,13 @@ export function ReceiveDeliveryScreen({
   const [addingNew, setAddingNew] = useState(false)
   const [newName, setNewName] = useState('')
   const [newUnit, setNewUnit] = useState('pcs')
+  const [newItemCategory, setNewItemCategory] = useState('')
   const [newCost, setNewCost] = useState('')
   const [newSalePrice, setNewSalePrice] = useState('')
   const [newCategory, setNewCategory] = useState('')
 
   const [editingDetailsFor, setEditingDetailsFor] = useState<Ingredient | null>(null)
+  const [editItemCategory, setEditItemCategory] = useState('')
   const [editCost, setEditCost] = useState('')
   const [editSalePrice, setEditSalePrice] = useState('')
   const [editCategory, setEditCategory] = useState('')
@@ -136,6 +139,7 @@ export function ReceiveDeliveryScreen({
   function openEditDetails(ing: Ingredient) {
     const linked = findLinkedMenuItem(ing)
     setEditingDetailsFor(ing)
+    setEditItemCategory(ing.category ?? categorizeIngredient(ing))
     setEditCost(String(ing.cost_per_unit))
     setEditSalePrice(linked ? String(linked.price) : '')
     setEditCategory(linked?.category ?? '')
@@ -144,6 +148,7 @@ export function ReceiveDeliveryScreen({
 
   function closeEditDetails() {
     setEditingDetailsFor(null)
+    setEditItemCategory('')
     setEditCost('')
     setEditSalePrice('')
     setEditCategory('')
@@ -168,7 +173,13 @@ export function ReceiveDeliveryScreen({
 
     const { error: costError } = await supabase
       .from('ingredients')
-      .update({ cost_per_unit: cost, updated_at: new Date().toISOString() })
+      .update({
+        cost_per_unit: cost,
+        category: editItemCategory || null,
+        is_container: editItemCategory === 'Containers & Cups',
+        is_milk: editItemCategory === 'Milk',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', editingDetailsFor.id)
     if (costError) {
       setEditSubmitting(false)
@@ -222,6 +233,7 @@ export function ReceiveDeliveryScreen({
     setAddingNew(false)
     setNewName('')
     setNewUnit('pcs')
+    setNewItemCategory('')
     setNewCost('')
     setNewSalePrice('')
     setNewCategory('')
@@ -232,6 +244,16 @@ export function ReceiveDeliveryScreen({
     const qty = Number(amount)
     if (!name) {
       setSubmitError('Give the new item a name.')
+      return
+    }
+    if (!newItemCategory) {
+      setSubmitError('Choose a category.')
+      return
+    }
+    // Containers (cups, cones, lids…) don't go off, so they're the one
+    // category exempt from requiring an expiry date — everything else does.
+    if (newItemCategory !== 'Containers & Cups' && !expiryDate) {
+      setSubmitError('Enter an expiry date.')
       return
     }
     if (Number.isNaN(qty) || qty <= 0) {
@@ -267,8 +289,10 @@ export function ReceiveDeliveryScreen({
         stock: expiryDate ? 0 : qty,
         low_threshold: 0,
         cost_per_unit: cost,
+        category: newItemCategory,
         is_flavour: false,
-        is_container: false,
+        is_container: newItemCategory === 'Containers & Cups',
+        is_milk: newItemCategory === 'Milk',
       })
       .select()
       .single()
@@ -453,6 +477,7 @@ export function ReceiveDeliveryScreen({
                   onClick={() => {
                     setAddingNew(true)
                     setNewName(search.trim())
+                    setNewItemCategory('')
                     setAmount('')
                     setExpiryDate('')
                     setSubmitError(null)
@@ -543,6 +568,23 @@ export function ReceiveDeliveryScreen({
                 ))}
               </select>
 
+              <label htmlFor="new-item-category">Category</label>
+              <select
+                id="new-item-category"
+                className="fixed-cost-input"
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+              >
+                <option value="" disabled>
+                  Choose a category…
+                </option>
+                {INGREDIENT_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
               <label htmlFor="new-amount">
                 How many arrived? ({newUnit === 'pcs' ? 'pieces' : newUnit})
               </label>
@@ -566,7 +608,9 @@ export function ReceiveDeliveryScreen({
                 onChange={(e) => setNewCost(e.target.value)}
               />
 
-              <label htmlFor="new-expiry">Expiry date (optional)</label>
+              <label htmlFor="new-expiry">
+                Expiry date{newItemCategory === 'Containers & Cups' ? ' (optional)' : ''}
+              </label>
               <input
                 id="new-expiry"
                 type="date"
@@ -574,6 +618,9 @@ export function ReceiveDeliveryScreen({
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
               />
+              {newItemCategory && newItemCategory !== 'Containers & Cups' && (
+                <p className="settings-hint">Required for anything that can go off.</p>
+              )}
 
               <label htmlFor="new-sale-price">Sale price (optional)</label>
               <input
@@ -588,7 +635,7 @@ export function ReceiveDeliveryScreen({
 
               {newSalePrice.trim() && (
                 <>
-                  <label htmlFor="new-category">Category (optional)</label>
+                  <label htmlFor="new-category">Menu category (optional)</label>
                   <input
                     id="new-category"
                     list="new-item-category-options"
@@ -619,7 +666,13 @@ export function ReceiveDeliveryScreen({
                   type="button"
                   className="checkout-confirm"
                   onClick={handleCreateAndReceive}
-                  disabled={submitting || !newName.trim() || !amount}
+                  disabled={
+                    submitting ||
+                    !newName.trim() ||
+                    !amount ||
+                    !newItemCategory ||
+                    (newItemCategory !== 'Containers & Cups' && !expiryDate)
+                  }
                 >
                   {submitting ? 'Adding…' : 'Create & add to stock'}
                 </button>
@@ -678,9 +731,26 @@ export function ReceiveDeliveryScreen({
             <section className="cashup-section">
               <h3>{editingDetailsFor.name}</h3>
               <p className="settings-hint">
-                Fix up cost, sale price and category after the fact — the same optional details you can set when
+                Fix up category, cost, sale price and expiry dates after the fact — the same details required when
                 logging a brand new item.
               </p>
+
+              <label htmlFor="edit-item-category">Category</label>
+              <select
+                id="edit-item-category"
+                className="fixed-cost-input"
+                value={editItemCategory}
+                onChange={(e) => setEditItemCategory(e.target.value)}
+              >
+                <option value="" disabled>
+                  Choose a category…
+                </option>
+                {INGREDIENT_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
 
               <label htmlFor="edit-cost">Cost per {editingDetailsFor.unit === 'pcs' ? 'piece' : editingDetailsFor.unit}</label>
               <input

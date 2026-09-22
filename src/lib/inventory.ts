@@ -19,9 +19,6 @@ export function isEmptied(batch: IngredientBatch): boolean {
   return batch.emptied_at !== null
 }
 
-// Ingredients have no stored category (unlike menu_items) — grouping is
-// derived from flags/name the same way Favourites derives membership in
-// MenuGrid, rather than adding a column every ingredient would need set.
 export const INGREDIENT_CATEGORIES = [
   'Gelato',
   'Milk',
@@ -38,7 +35,14 @@ export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number]
 
 const BAKERY_PATTERN = /cookie|alfajor|brownie|medialuna|crois?sant|pastafrola|tarta|pionono|banana bread|libros|power ball/i
 
+// New entries (Receive delivery's "New item") store a real category chosen
+// at creation time — that's authoritative when present. Anything from
+// before that (or CSV-imported) has no stored category, so it falls back
+// to the old name/flag-based guess below.
 export function categorizeIngredient(ingredient: Ingredient): IngredientCategory {
+  if (ingredient.category && (INGREDIENT_CATEGORIES as readonly string[]).includes(ingredient.category)) {
+    return ingredient.category as IngredientCategory
+  }
   const name = ingredient.name
   if (name.startsWith('Gelato - ')) return 'Gelato'
   if (ingredient.is_milk) return 'Milk'

@@ -31,6 +31,7 @@ export type Ingredient = {
   stock: number
   low_threshold: number
   cost_per_unit: number
+  category: string | null
   is_flavour: boolean
   is_container: boolean
   is_milk: boolean
