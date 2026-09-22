@@ -1,17 +1,26 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { Ingredient, IngredientBatch } from '../lib/types'
+import type { Ingredient, IngredientBatch, MenuItem } from '../lib/types'
 
 type ReceiveDeliveryScreenProps = {
   ingredients: Ingredient[]
   batches: IngredientBatch[]
+  menuItems: MenuItem[]
   loading: boolean
   error: string | null
   onChanged: () => void
   onBatchesChanged: () => void
+  onMenuItemsChanged: () => void
 }
 
-type Received = { name: string; amount: number; unit: string; newTotal: number; isNew?: boolean }
+type Received = {
+  name: string
+  amount: number
+  unit: string
+  newTotal: number
+  isNew?: boolean
+  addedToMenu?: boolean
+}
 
 const UNITS = [
   { value: 'pcs', label: 'Pieces' },
@@ -23,10 +32,12 @@ const UNITS = [
 export function ReceiveDeliveryScreen({
   ingredients,
   batches,
+  menuItems,
   loading,
   error,
   onChanged,
   onBatchesChanged,
+  onMenuItemsChanged,
 }: ReceiveDeliveryScreenProps) {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -40,6 +51,13 @@ export function ReceiveDeliveryScreen({
   const [newName, setNewName] = useState('')
   const [newUnit, setNewUnit] = useState('pcs')
   const [newCost, setNewCost] = useState('')
+  const [newSalePrice, setNewSalePrice] = useState('')
+  const [newCategory, setNewCategory] = useState('')
+
+  const categories = useMemo(
+    () => Array.from(new Set(menuItems.map((item) => item.category))).sort(),
+    [menuItems],
+  )
 
   const batchTrackedIds = useMemo(() => new Set(batches.map((b) => b.ingredient_id)), [batches])
 
@@ -60,6 +78,8 @@ export function ReceiveDeliveryScreen({
     setNewName('')
     setNewUnit('pcs')
     setNewCost('')
+    setNewSalePrice('')
+    setNewCategory('')
   }
 
   async function handleCreateAndReceive() {
@@ -80,6 +100,11 @@ export function ReceiveDeliveryScreen({
     const cost = newCost.trim() ? Number(newCost) : 0
     if (Number.isNaN(cost) || cost < 0) {
       setSubmitError('Cost must be a number.')
+      return
+    }
+    const salePrice = newSalePrice.trim() ? Number(newSalePrice) : null
+    if (salePrice !== null && (Number.isNaN(salePrice) || salePrice < 0)) {
+      setSubmitError('Sale price must be a number.')
       return
     }
 
@@ -128,7 +153,29 @@ export function ReceiveDeliveryScreen({
       onChanged()
     }
 
-    setRecent((prev) => [{ name, amount: qty, unit: newUnit, newTotal: qty, isNew: true }, ...prev])
+    // A sale price means this is something customers buy directly (e.g. a new
+    // packaged drink), not just a raw ingredient — so it also needs a menu
+    // item, linked back via a one-line recipe the same way existing packaged
+    // items (Coca-Cola, Sprite, etc.) decrement their can/bottle per sale.
+    if (salePrice !== null) {
+      const { error: menuError } = await supabase.from('menu_items').insert({
+        name,
+        category: newCategory.trim() || 'Other',
+        price: salePrice,
+        recipe: [{ ingredient_id: created.id, qty: 1 }],
+      })
+      if (menuError) {
+        setSubmitting(false)
+        setSubmitError(`Item was received, but adding it to the menu failed: ${menuError.message}`)
+        return
+      }
+      onMenuItemsChanged()
+    }
+
+    setRecent((prev) => [
+      { name, amount: qty, unit: newUnit, newTotal: qty, isNew: true, addedToMenu: salePrice !== null },
+      ...prev,
+    ])
     setSubmitting(false)
     resetForm()
   }
@@ -238,6 +285,7 @@ export function ReceiveDeliveryScreen({
                     {r.name}: +{r.amount}
                     {r.unit === 'pcs' ? '' : r.unit} (now {r.newTotal}
                     {r.unit === 'pcs' ? ` ${r.unit}` : r.unit}){r.isNew ? ' — new item' : ''}
+                    {r.addedToMenu ? ', added to menu' : ''}
                   </li>
                 ))}
               </ul>
@@ -375,6 +423,40 @@ export function ReceiveDeliveryScreen({
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
               />
+
+              <label htmlFor="new-sale-price">Sale price (optional)</label>
+              <input
+                id="new-sale-price"
+                type="number"
+                inputMode="decimal"
+                className="fixed-cost-input"
+                placeholder="0.00"
+                value={newSalePrice}
+                onChange={(e) => setNewSalePrice(e.target.value)}
+              />
+
+              {newSalePrice.trim() && (
+                <>
+                  <label htmlFor="new-category">Category (optional)</label>
+                  <input
+                    id="new-category"
+                    list="new-item-category-options"
+                    className="fixed-cost-input"
+                    placeholder="Other"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                  />
+                  <datalist id="new-item-category-options">
+                    {categories.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                  <p className="settings-hint">
+                    A sale price adds this to the menu too, so it can be sold straight away — otherwise it's just
+                    tracked as stock.
+                  </p>
+                </>
+              )}
 
               {submitError && <p className="checkout-error">{submitError}</p>}
 

@@ -621,6 +621,7 @@ function App() {
           <ReceiveDeliveryScreen
             ingredients={ingredients}
             batches={batches}
+            menuItems={menuItems}
             loading={ingredientsLoading}
             error={ingredientsError}
             onChanged={refetchIngredients}
@@ -628,6 +629,7 @@ function App() {
               refetchIngredientBatches()
               refetchIngredients()
             }}
+            onMenuItemsChanged={refetchMenuItems}
           />
         </main>
       )}
