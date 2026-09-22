@@ -54,6 +54,13 @@ export function ReceiveDeliveryScreen({
   const [newSalePrice, setNewSalePrice] = useState('')
   const [newCategory, setNewCategory] = useState('')
 
+  const [editingDetailsFor, setEditingDetailsFor] = useState<Ingredient | null>(null)
+  const [editCost, setEditCost] = useState('')
+  const [editSalePrice, setEditSalePrice] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   const categories = useMemo(
     () => Array.from(new Set(menuItems.map((item) => item.category))).sort(),
     [menuItems],
@@ -68,6 +75,94 @@ export function ReceiveDeliveryScreen({
   }, [ingredients, search])
 
   const selected = ingredients.find((i) => i.id === selectedId) ?? null
+
+  // Same name-match convention CSV import uses to line up rows — a packaged
+  // item's ingredient and its menu item share a name, so there's no explicit
+  // link to manage; this just finds the other half of the same product.
+  function findLinkedMenuItem(ing: Ingredient) {
+    return menuItems.find((m) => m.name.toLowerCase() === ing.name.toLowerCase()) ?? null
+  }
+
+  function openEditDetails(ing: Ingredient) {
+    const linked = findLinkedMenuItem(ing)
+    setEditingDetailsFor(ing)
+    setEditCost(String(ing.cost_per_unit))
+    setEditSalePrice(linked ? String(linked.price) : '')
+    setEditCategory(linked?.category ?? '')
+    setEditError(null)
+  }
+
+  function closeEditDetails() {
+    setEditingDetailsFor(null)
+    setEditCost('')
+    setEditSalePrice('')
+    setEditCategory('')
+    setEditError(null)
+  }
+
+  async function handleSaveDetails() {
+    if (!editingDetailsFor) return
+    const cost = editCost.trim() ? Number(editCost) : 0
+    if (Number.isNaN(cost) || cost < 0) {
+      setEditError('Cost must be a number.')
+      return
+    }
+    const salePrice = editSalePrice.trim() ? Number(editSalePrice) : null
+    if (salePrice !== null && (Number.isNaN(salePrice) || salePrice < 0)) {
+      setEditError('Sale price must be a number.')
+      return
+    }
+
+    setEditSubmitting(true)
+    setEditError(null)
+
+    const { error: costError } = await supabase
+      .from('ingredients')
+      .update({ cost_per_unit: cost, updated_at: new Date().toISOString() })
+      .eq('id', editingDetailsFor.id)
+    if (costError) {
+      setEditSubmitting(false)
+      setEditError(costError.message)
+      return
+    }
+    onChanged()
+
+    // Leaving sale price blank means "don't touch the menu side" — it's
+    // pre-filled from the linked item when one exists, so a blank only
+    // happens here if there was never a linked item to begin with.
+    if (salePrice !== null) {
+      const linked = findLinkedMenuItem(editingDetailsFor)
+      const category = editCategory.trim() || 'Other'
+
+      if (linked) {
+        const { error: menuError } = await supabase
+          .from('menu_items')
+          .update({ price: salePrice, category, updated_at: new Date().toISOString() })
+          .eq('id', linked.id)
+        if (menuError) {
+          setEditSubmitting(false)
+          setEditError(`Cost saved, but updating the menu item failed: ${menuError.message}`)
+          return
+        }
+      } else {
+        const { error: menuError } = await supabase.from('menu_items').insert({
+          name: editingDetailsFor.name,
+          category,
+          price: salePrice,
+          recipe: [{ ingredient_id: editingDetailsFor.id, qty: 1 }],
+        })
+        if (menuError) {
+          setEditSubmitting(false)
+          setEditError(`Cost saved, but adding it to the menu failed: ${menuError.message}`)
+          return
+        }
+      }
+      onMenuItemsChanged()
+    }
+
+    setEditSubmitting(false)
+    closeEditDetails()
+  }
 
   function resetForm() {
     setSelectedId(null)
@@ -292,7 +387,7 @@ export function ReceiveDeliveryScreen({
             </div>
           )}
 
-          {!selected && !addingNew && (
+          {!selected && !addingNew && !editingDetailsFor && (
             <>
               <div className="ingredient-toolbar">
                 <input
@@ -328,6 +423,7 @@ export function ReceiveDeliveryScreen({
                       <th>Name</th>
                       <th>In stock</th>
                       <th></th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -349,6 +445,11 @@ export function ReceiveDeliveryScreen({
                             }}
                           >
                             Receive
+                          </button>
+                        </td>
+                        <td>
+                          <button type="button" className="menu-manager-edit" onClick={() => openEditDetails(ing)}>
+                            Edit details
                           </button>
                         </td>
                       </tr>
@@ -518,6 +619,79 @@ export function ReceiveDeliveryScreen({
                   disabled={submitting || !amount}
                 >
                   {submitting ? 'Adding…' : 'Add to stock'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {editingDetailsFor && (
+            <section className="cashup-section">
+              <h3>{editingDetailsFor.name}</h3>
+              <p className="settings-hint">
+                Fix up cost, sale price and category after the fact — the same optional details you can set when
+                logging a brand new item.
+              </p>
+
+              <label htmlFor="edit-cost">Cost per {editingDetailsFor.unit === 'pcs' ? 'piece' : editingDetailsFor.unit}</label>
+              <input
+                id="edit-cost"
+                type="number"
+                inputMode="decimal"
+                className="fixed-cost-input"
+                placeholder="0.00"
+                value={editCost}
+                onChange={(e) => setEditCost(e.target.value)}
+                autoFocus
+              />
+
+              <label htmlFor="edit-sale-price">Sale price</label>
+              <input
+                id="edit-sale-price"
+                type="number"
+                inputMode="decimal"
+                className="fixed-cost-input"
+                placeholder="Not sold on the menu"
+                value={editSalePrice}
+                onChange={(e) => setEditSalePrice(e.target.value)}
+              />
+
+              {editSalePrice.trim() && (
+                <>
+                  <label htmlFor="edit-category">Category</label>
+                  <input
+                    id="edit-category"
+                    list="edit-item-category-options"
+                    className="fixed-cost-input"
+                    placeholder="Other"
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                  />
+                  <datalist id="edit-item-category-options">
+                    {categories.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                  <p className="settings-hint">
+                    {findLinkedMenuItem(editingDetailsFor)
+                      ? "Updates the existing menu item's price and category."
+                      : "This item isn't on the menu yet — setting a sale price adds it."}
+                  </p>
+                </>
+              )}
+
+              {editError && <p className="checkout-error">{editError}</p>}
+
+              <div className="checkout-actions">
+                <button type="button" className="checkout-cancel" onClick={closeEditDetails} disabled={editSubmitting}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="checkout-confirm"
+                  onClick={handleSaveDetails}
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? 'Saving…' : 'Save details'}
                 </button>
               </div>
             </section>
