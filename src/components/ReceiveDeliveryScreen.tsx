@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { IngredientBatchEditor } from './IngredientBatchEditor'
 import type { Ingredient, IngredientBatch, MenuItem } from '../lib/types'
 
 type ReceiveDeliveryScreenProps = {
@@ -61,6 +62,11 @@ export function ReceiveDeliveryScreen({
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
+  const [batchEditorFor, setBatchEditorFor] = useState<{ ingredient: Ingredient; batch: IngredientBatch | null } | null>(
+    null,
+  )
+  const [addingBatch, setAddingBatch] = useState(false)
+
   const categories = useMemo(
     () => Array.from(new Set(menuItems.map((item) => item.category))).sort(),
     [menuItems],
@@ -81,6 +87,50 @@ export function ReceiveDeliveryScreen({
   // link to manage; this just finds the other half of the same product.
   function findLinkedMenuItem(ing: Ingredient) {
     return menuItems.find((m) => m.name.toLowerCase() === ing.name.toLowerCase()) ?? null
+  }
+
+  // Soonest-expiring first, undated batches last — the same order sales are
+  // deducted from (see deduct_ingredient_stock), so the list on screen reads
+  // top-to-bottom in the order it'll actually be sold down.
+  function activeBatchesFor(ing: Ingredient) {
+    return batches
+      .filter((b) => b.ingredient_id === ing.id && !b.emptied_at)
+      .sort((a, b) => {
+        if (a.expiry_date && b.expiry_date) return a.expiry_date.localeCompare(b.expiry_date)
+        if (a.expiry_date) return -1
+        if (b.expiry_date) return 1
+        return a.received_at.localeCompare(b.received_at)
+      })
+  }
+
+  function openEditBatch(ing: Ingredient, batch: IngredientBatch) {
+    setBatchEditorFor({ ingredient: ing, batch })
+  }
+
+  async function openAddBatch(ing: Ingredient) {
+    // Same conversion handleReceive() already does: an ingredient with no
+    // batch rows yet has its stock as one plain number, and the moment a
+    // batch row exists for it, ingredients.stock becomes trigger-derived
+    // from the sum of its batches — so the pre-existing stock has to be
+    // captured as its own (dateless, expiry-unknown) batch first, or it
+    // would simply vanish once the new dated batch takes over.
+    if (!batchTrackedIds.has(ing.id) && ing.stock > 0) {
+      setAddingBatch(true)
+      setEditError(null)
+      const { error: preserveError } = await supabase.from('ingredient_batches').insert({
+        ingredient_id: ing.id,
+        weight_grams: ing.stock,
+        expiry_date: null,
+        note: 'Stock on hand before expiry tracking started — expiry unknown',
+      })
+      setAddingBatch(false)
+      if (preserveError) {
+        setEditError(preserveError.message)
+        return
+      }
+      onBatchesChanged()
+    }
+    setBatchEditorFor({ ingredient: ing, batch: null })
   }
 
   function openEditDetails(ing: Ingredient) {
@@ -679,6 +729,59 @@ export function ReceiveDeliveryScreen({
                 </>
               )}
 
+              <h4 className="low-stock-section-title">Expiry dates</h4>
+              <p className="settings-hint">
+                Different deliveries of the same item can expire on different dates — each stays its own entry below
+                rather than being merged into one. Sales are always taken from whichever entry expires soonest, so
+                the oldest stock naturally sells down first without anyone having to manage that by hand.
+              </p>
+
+              {activeBatchesFor(editingDetailsFor).length === 0 ? (
+                <p className="menu-grid-status">
+                  {editingDetailsFor.stock > 0
+                    ? "This item's stock doesn't have an expiry date tracked yet."
+                    : 'No stock on hand.'}
+                </p>
+              ) : (
+                <table className="menu-manager-table">
+                  <thead>
+                    <tr>
+                      <th>Expiry date</th>
+                      <th>Amount</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeBatchesFor(editingDetailsFor).map((b) => (
+                      <tr key={b.id}>
+                        <td>{b.expiry_date ?? 'No expiry set'}</td>
+                        <td>
+                          {Math.round(b.weight_grams * 10) / 10} {editingDetailsFor.unit}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="menu-manager-edit"
+                            onClick={() => openEditBatch(editingDetailsFor, b)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <button
+                type="button"
+                className="menu-manager-add"
+                onClick={() => openAddBatch(editingDetailsFor)}
+                disabled={addingBatch}
+              >
+                {addingBatch ? 'Adding…' : '+ Add expiry date'}
+              </button>
+
               {editError && <p className="checkout-error">{editError}</p>}
 
               <div className="checkout-actions">
@@ -695,6 +798,19 @@ export function ReceiveDeliveryScreen({
                 </button>
               </div>
             </section>
+          )}
+
+          {batchEditorFor && (
+            <IngredientBatchEditor
+              batch={batchEditorFor.batch}
+              ingredients={ingredients}
+              initialIngredientId={batchEditorFor.ingredient.id}
+              onClose={() => setBatchEditorFor(null)}
+              onSaved={() => {
+                setBatchEditorFor(null)
+                onBatchesChanged()
+              }}
+            />
           )}
         </>
       )}
