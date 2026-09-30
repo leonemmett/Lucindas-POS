@@ -395,6 +395,30 @@
   margin-bottom: 12px;
 }
 
+.ticket-total {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.ticket-line-discount {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.ticket-line-discount input {
+  width: 50px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
 .ticket-charge {
   width: 100%;
   padding: 12px;

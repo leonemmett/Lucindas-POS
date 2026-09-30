@@ -35,7 +35,7 @@ export function writeActiveTicketDraft(tableId: string | null, lines: TicketLine
   try {
     const draft: ActiveTicketDraft = {
       tableId,
-      lines: lines.map(({ menuItem, qty, flavors }) => ({ menuItem, qty, flavors })),
+      lines: lines.map(({ menuItem, qty, flavors, discountPercent }) => ({ menuItem, qty, flavors, discountPercent })),
       savedAt: new Date().toISOString(),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))

@@ -35,10 +35,13 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const { staffId } = useCurrentStaff()
 
   const [payment, setPayment] = useState<PaymentMethod>('cash')
-  // Keyed by line.key — discount is applied per item at checkout, not once
-  // for the whole order, so a ticket can mix e.g. one staff-freebie scoop
-  // with a regular paying item.
-  const [lineDiscounts, setLineDiscounts] = useState<Record<string, number>>({})
+  // Keyed by line.key — seeded from whatever discount was already set per
+  // item in the Ticket panel, still adjustable here for a final tweak
+  // before charging. Discount is per item, not once for the whole order, so
+  // a ticket can mix e.g. one staff-freebie scoop with a regular paying item.
+  const [lineDiscounts, setLineDiscounts] = useState<Record<string, number>>(() =>
+    Object.fromEntries(lines.map((line) => [line.key, line.discountPercent ?? 0])),
+  )
   const [customers, setCustomers] = useState(1)
   const [note, setNote] = useState('')
   const [cashGiven, setCashGiven] = useState(0)

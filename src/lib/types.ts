@@ -60,6 +60,10 @@ export type TicketLine = {
   menuItem: MenuItem
   qty: number
   flavors?: FlavorSelection[]
+  // Set while building the order (Ticket panel), not only at checkout —
+  // carried through table persistence/draft recovery so it survives a
+  // table switch or reload.
+  discountPercent?: number
 }
 
 export type PaymentMethod = 'cash' | 'card1' | 'card2' | 'transfer'
@@ -74,6 +78,7 @@ export type OpenTicketItem = {
   menu_item_id: string
   qty: number
   flavors?: FlavorSelection[]
+  discount_percent?: number
 }
 
 export type SaleItem = {

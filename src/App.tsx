@@ -157,7 +157,9 @@ function App() {
     return items.flatMap((item) => {
       const menuItem = menuItems.find((m) => m.id === item.menu_item_id)
       if (!menuItem) return []
-      return [{ key: crypto.randomUUID(), menuItem, qty: item.qty, flavors: item.flavors }]
+      return [
+        { key: crypto.randomUUID(), menuItem, qty: item.qty, flavors: item.flavors, discountPercent: item.discount_percent },
+      ]
     })
   }
 
@@ -166,6 +168,7 @@ function App() {
       menu_item_id: line.menuItem.id,
       qty: line.qty,
       flavors: line.flavors,
+      discount_percent: line.discountPercent,
     }))
   }
 
@@ -335,6 +338,11 @@ function App() {
 
   function handleRemove(key: string) {
     setLines((prev) => prev.filter((line) => line.key !== key))
+  }
+
+  function handleSetDiscount(key: string, percent: number) {
+    const clamped = Math.min(100, Math.max(0, percent))
+    setLines((prev) => prev.map((line) => (line.key === key ? { ...line, discountPercent: clamped } : line)))
   }
 
   function handleClear() {
@@ -543,6 +551,7 @@ function App() {
               onDecrement={handleDecrement}
               onRemove={handleRemove}
               onClear={handleClear}
+              onSetDiscount={handleSetDiscount}
               onCharge={() => setCheckoutOpen(true)}
             />
           </main>
