@@ -156,7 +156,7 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
       for (const item of s.items) {
         const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0 }
         prev.qty += item.qty
-        prev.revenue += item.price * item.qty
+        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0)
         map.set(item.menu_item_id, prev)
       }
     }
@@ -205,10 +205,12 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
   const costByIngredientId = useMemo(() => new Map(ingredients.map((i) => [i.id, i.cost_per_unit])), [ingredients])
 
   // Menu prices are IVA-inclusive, so each line's tax is backed out of its
-  // price rather than added on top. A sale's discount is applied at the
-  // sale level, not per line, so each item's revenue is scaled down by the
-  // sale's actual total-to-subtotal ratio before splitting into base/IVA —
-  // otherwise a discounted or 100%-staff sale would overstate tax collected.
+  // price rather than added on top. Discount is applied per item at
+  // checkout, so each item carries its own discount_amount — gross revenue
+  // is that item's price minus its own discount before splitting into
+  // base/IVA. Sales recorded before per-item discounts existed have no
+  // discount_amount on their items, so those fall back to the sale's
+  // overall total-to-subtotal ratio applied uniformly, same as before.
   const ivaByDay = useMemo(() => {
     const map = new Map<
       string,
@@ -224,7 +226,10 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
 
       for (const item of s.items) {
         const rate = item.iva_rate ?? menuItemById.get(item.menu_item_id)?.iva_rate ?? 0.16
-        const gross = item.price * item.qty * ratio
+        const gross =
+          item.discount_amount !== undefined
+            ? item.price * item.qty - item.discount_amount
+            : item.price * item.qty * ratio
         if (rate === 0) {
           row.exempt_total += gross
         } else if (rate < 0.12) {
@@ -286,7 +291,7 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
         const { cost, hasIngredients } = saleItemUnitCost(item, menuItem, costByIngredientId)
         const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0, cost: 0, hasIngredients: false }
         prev.qty += item.qty
-        prev.revenue += item.price * item.qty
+        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0)
         prev.cost += cost * item.qty
         prev.hasIngredients = prev.hasIngredients || hasIngredients
         map.set(item.menu_item_id, prev)

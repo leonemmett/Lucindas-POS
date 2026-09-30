@@ -69,15 +69,24 @@ export async function generateReceiptPdf(input: ReceiptContent): Promise<Blob> {
 
   doc.setFontSize(11)
   for (const item of input.items) {
+    const itemDiscount = item.discount_amount ?? 0
+    const itemTotal = item.price * item.qty - itemDiscount
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(INK)
     doc.text(`${item.qty} × ${item.name}`, marginX, y)
-    doc.text(currency.format(item.price * item.qty), pageWidth - marginX, y, { align: 'right' })
+    doc.text(currency.format(itemTotal), pageWidth - marginX, y, { align: 'right' })
     y += 6
     if (item.flavors && item.flavors.length > 0) {
       doc.setFontSize(9)
       doc.setTextColor(MUTED)
       doc.text(item.flavors.map((f) => f.name).join(', '), marginX + 4, y)
+      doc.setFontSize(11)
+      y += 5
+    }
+    if (itemDiscount > 0) {
+      doc.setFontSize(9)
+      doc.setTextColor(MUTED)
+      doc.text(`${item.discount_percent}% off (-${currency.format(itemDiscount)})`, marginX + 4, y)
       doc.setFontSize(11)
       y += 5
     }

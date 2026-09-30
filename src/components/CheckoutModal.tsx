@@ -35,7 +35,10 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const { staffId } = useCurrentStaff()
 
   const [payment, setPayment] = useState<PaymentMethod>('cash')
-  const [discountPercent, setDiscountPercent] = useState(0)
+  // Keyed by line.key — discount is applied per item at checkout, not once
+  // for the whole order, so a ticket can mix e.g. one staff-freebie scoop
+  // with a regular paying item.
+  const [lineDiscounts, setLineDiscounts] = useState<Record<string, number>>({})
   const [customers, setCustomers] = useState(1)
   const [note, setNote] = useState('')
   const [cashGiven, setCashGiven] = useState(0)
@@ -43,8 +46,30 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const [error, setError] = useState<string | null>(null)
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null)
 
-  const discountAmount = useMemo(() => subtotal * (discountPercent / 100), [subtotal, discountPercent])
+  function lineDiscountPercent(key: string) {
+    return lineDiscounts[key] ?? 0
+  }
+
+  function lineAmounts(line: TicketLine) {
+    const lineSubtotal = line.menuItem.price * line.qty
+    const pct = lineDiscountPercent(line.key)
+    const discount = lineSubtotal * (pct / 100)
+    return { lineSubtotal, pct, discount, lineTotal: lineSubtotal - discount }
+  }
+
+  const discountAmount = useMemo(
+    () =>
+      lines.reduce((sum, line) => {
+        const pct = lineDiscounts[line.key] ?? 0
+        return sum + line.menuItem.price * line.qty * (pct / 100)
+      }, 0),
+    [lines, lineDiscounts],
+  )
   const total = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount])
+  // Blended rate across the whole order — stored on the sale for reporting
+  // (e.g. "100% discount = staff consumption" in SalesReport), even though
+  // it's derived from per-item rates rather than a single order-wide one.
+  const discountPercent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0
   const changeDue = cashGiven - total
   const cashInsufficient = payment === 'cash' && cashGiven < total
 
@@ -53,16 +78,19 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     if (value !== 'cash') setCashGiven(0)
   }
 
+  function setLineDiscount(key: string, value: number) {
+    setLineDiscounts((prev) => ({ ...prev, [key]: Math.min(100, Math.max(0, value)) }))
+  }
+
   // Staff eating gelato for free still needs to hit record_sale so stock
   // deducts normally — a 100% discount records the consumption at $0
   // rather than skipping the sale (and inventory tracking) entirely.
+  // Applies to every line at once; individual items can still be adjusted
+  // afterwards for a mixed ticket.
   function handleStaffDiscount() {
-    if (discountPercent === 100) {
-      setDiscountPercent(0)
-      return
-    }
-    setDiscountPercent(100)
-    if (!note.trim()) setNote('Staff consumption')
+    const allAt100 = lines.every((line) => lineDiscountPercent(line.key) === 100)
+    setLineDiscounts(Object.fromEntries(lines.map((line) => [line.key, allAt100 ? 0 : 100])))
+    if (!allAt100 && !note.trim()) setNote('Staff consumption')
   }
 
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
@@ -76,14 +104,19 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     setSubmitting(true)
     setError(null)
 
-    const items: SaleItem[] = lines.map((line) => ({
-      menu_item_id: line.menuItem.id,
-      name: line.menuItem.name,
-      price: line.menuItem.price,
-      qty: line.qty,
-      flavors: line.flavors,
-      iva_rate: line.menuItem.iva_rate,
-    }))
+    const items: SaleItem[] = lines.map((line) => {
+      const { pct, discount } = lineAmounts(line)
+      return {
+        menu_item_id: line.menuItem.id,
+        name: line.menuItem.name,
+        price: line.menuItem.price,
+        qty: line.qty,
+        flavors: line.flavors,
+        iva_rate: line.menuItem.iva_rate,
+        discount_percent: pct,
+        discount_amount: discount,
+      }
+    })
 
     const { error } = await supabase.rpc('record_sale', {
       p_table_name: tableName,
@@ -161,6 +194,44 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
       <div className="modal-card checkout-modal">
         <h2>Checkout{tableName ? ` — ${tableName}` : ''}</h2>
 
+        <label>Items &amp; discounts</label>
+        <div className="checkout-line-items">
+          {lines.map((line) => {
+            const { lineSubtotal, pct, discount, lineTotal } = lineAmounts(line)
+            return (
+              <div className="checkout-line-item" key={line.key}>
+                <div className="ticket-line-info">
+                  <span>
+                    {line.qty} &times; {line.menuItem.name}
+                  </span>
+                  <span>{currency.format(lineTotal)}</span>
+                </div>
+                <div className="discount-row">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    aria-label={`Discount % for ${line.menuItem.name}`}
+                    value={pct}
+                    onChange={(e) => setLineDiscount(line.key, Number(e.target.value))}
+                  />
+                  <span className="checkout-line-discount-label">
+                    % off{discount > 0 ? ` (-${currency.format(discount)} of ${currency.format(lineSubtotal)})` : ''}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <button
+          type="button"
+          className={`staff-discount-toggle${lines.length > 0 && lines.every((l) => lineDiscountPercent(l.key) === 100) ? ' active' : ''}`}
+          onClick={handleStaffDiscount}
+        >
+          Staff (100% off everything)
+        </button>
+
         <div className="checkout-summary">
           <div className="checkout-row">
             <span>Subtotal</span>
@@ -174,25 +245,6 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
             <span>Total</span>
             <span>{currency.format(total)}</span>
           </div>
-        </div>
-
-        <label htmlFor="discount">Discount %</label>
-        <div className="discount-row">
-          <input
-            id="discount"
-            type="number"
-            min={0}
-            max={100}
-            value={discountPercent}
-            onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
-          />
-          <button
-            type="button"
-            className={`staff-discount-toggle${discountPercent === 100 ? ' active' : ''}`}
-            onClick={handleStaffDiscount}
-          >
-            Staff (100%)
-          </button>
         </div>
 
         <label>Payment method</label>

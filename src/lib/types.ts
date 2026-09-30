@@ -83,6 +83,8 @@ export type SaleItem = {
   qty: number
   flavors?: FlavorSelection[]
   iva_rate?: number
+  discount_percent?: number
+  discount_amount?: number
 }
 
 export type Sale = {

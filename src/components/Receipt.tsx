@@ -43,19 +43,28 @@ export function Receipt({
         <div className="receipt-divider" />
 
         <div className="receipt-items">
-          {items.map((item, i) => (
-            <div className="receipt-line-group" key={i}>
-              <div className="receipt-line">
-                <span>
-                  {item.qty} &times; {item.name}
-                </span>
-                <span>{currency.format(item.price * item.qty)}</span>
+          {items.map((item, i) => {
+            const itemDiscount = item.discount_amount ?? 0
+            const itemTotal = item.price * item.qty - itemDiscount
+            return (
+              <div className="receipt-line-group" key={i}>
+                <div className="receipt-line">
+                  <span>
+                    {item.qty} &times; {item.name}
+                  </span>
+                  <span>{currency.format(itemTotal)}</span>
+                </div>
+                {item.flavors && item.flavors.length > 0 && (
+                  <div className="receipt-line-flavors">{item.flavors.map((f) => f.name).join(', ')}</div>
+                )}
+                {itemDiscount > 0 && (
+                  <div className="receipt-line-flavors">
+                    {item.discount_percent}% off (-{currency.format(itemDiscount)})
+                  </div>
+                )}
               </div>
-              {item.flavors && item.flavors.length > 0 && (
-                <div className="receipt-line-flavors">{item.flavors.map((f) => f.name).join(', ')}</div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         <div className="receipt-divider" />

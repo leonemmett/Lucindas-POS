@@ -44,14 +44,19 @@ export function SaleDetailsModal({ sale, staffNames, onClose, onVoided }: SaleDe
         )}
 
         <ul className="sale-items-list">
-          {sale.items.map((item, i) => (
-            <li key={i} className="ticket-line-info">
-              <span>
-                {item.qty} × {item.name}
-              </span>
-              <span>{currency.format(item.price * item.qty)}</span>
-            </li>
-          ))}
+          {sale.items.map((item, i) => {
+            const itemDiscount = item.discount_amount ?? 0
+            const itemTotal = item.price * item.qty - itemDiscount
+            return (
+              <li key={i} className="ticket-line-info">
+                <span>
+                  {item.qty} × {item.name}
+                  {itemDiscount > 0 ? ` (${item.discount_percent}% off)` : ''}
+                </span>
+                <span>{currency.format(itemTotal)}</span>
+              </li>
+            )
+          })}
         </ul>
 
         <div className="checkout-summary">

@@ -14,9 +14,14 @@ export function formatReceiptText(input: ReceiptContent): string {
   lines.push('')
 
   for (const item of input.items) {
-    lines.push(`${item.qty} x ${item.name} — ${currency.format(item.price * item.qty)}`)
+    const itemDiscount = item.discount_amount ?? 0
+    const itemTotal = item.price * item.qty - itemDiscount
+    lines.push(`${item.qty} x ${item.name} — ${currency.format(itemTotal)}`)
     if (item.flavors && item.flavors.length > 0) {
       lines.push(`   ${item.flavors.map((f) => f.name).join(', ')}`)
+    }
+    if (itemDiscount > 0) {
+      lines.push(`   ${item.discount_percent}% off (-${currency.format(itemDiscount)})`)
     }
   }
 
