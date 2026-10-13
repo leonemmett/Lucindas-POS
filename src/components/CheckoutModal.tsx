@@ -259,7 +259,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
       <div className="modal-card checkout-modal">
         <h2>Checkout{tableName ? ` — ${tableName}` : ''}</h2>
 
-        <label>Items &amp; discounts</label>
+        <label className="checkout-items-heading">Order ({lines.length} item{lines.length === 1 ? '' : 's'})</label>
         <div className="checkout-line-items">
           {lines.map((line) => {
             const { lineSubtotal, pct, discount, lineTotal } = lineAmounts(line)

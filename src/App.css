@@ -572,6 +572,10 @@
   color: var(--text-h);
 }
 
+.checkout-modal {
+  max-width: 460px;
+}
+
 .checkout-modal input,
 .checkout-modal textarea {
   padding: 10px 12px;
@@ -609,21 +613,35 @@
   color: #fff;
 }
 
+.checkout-items-heading {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--text-h);
+}
+
 .checkout-line-items {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 30svh;
+  max-height: 48svh;
   overflow-y: auto;
-  padding-right: 2px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .checkout-line-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
+}
+
+.checkout-line-item .ticket-line-info {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .checkout-line-item:last-child {
