@@ -56,6 +56,10 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
   const [lineDiscounts, setLineDiscounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(lines.map((line) => [line.key, line.discountPercent ?? 0])),
   )
+  // Not a tracked value of its own — just the last typed "apply to
+  // everything" shortcut. Per-item discounts below remain the source of
+  // truth and can still diverge from this afterward.
+  const [globalDiscountInput, setGlobalDiscountInput] = useState(0)
   // Keyed by line.key, same as discounts — each eligible item is toggled
   // eat in/take away individually, not once for the whole order, so e.g. one
   // sandwich can go to-go while the rest of the order is eaten in.
@@ -140,6 +144,15 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
     setLineDiscounts((prev) => ({ ...prev, [key]: Math.min(100, Math.max(0, value)) }))
   }
 
+  // Sets every line to the same % at once — a shortcut, not a separate
+  // tracked value, so individual lines can still be tweaked afterward
+  // without the global field fighting with them.
+  function applyGlobalDiscount(value: number) {
+    const clamped = Math.min(100, Math.max(0, value))
+    setGlobalDiscountInput(clamped)
+    setLineDiscounts(Object.fromEntries(lines.map((line) => [line.key, clamped])))
+  }
+
   function setLineTakeawayValue(key: string, value: boolean) {
     setLineTakeaway((prev) => ({ ...prev, [key]: value }))
   }
@@ -151,7 +164,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
   // afterwards for a mixed ticket.
   function handleStaffDiscount() {
     const allAt100 = lines.every((line) => lineDiscountPercent(line.key) === 100)
-    setLineDiscounts(Object.fromEntries(lines.map((line) => [line.key, allAt100 ? 0 : 100])))
+    applyGlobalDiscount(allAt100 ? 0 : 100)
     if (!allAt100 && !note.trim()) setNote('Staff consumption')
   }
 
@@ -258,6 +271,21 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card checkout-modal">
         <h2>Checkout{tableName ? ` — ${tableName}` : ''}</h2>
+
+        <label htmlFor="global-discount">Discount entire order %</label>
+        <div className="discount-row">
+          <input
+            id="global-discount"
+            type="number"
+            min={0}
+            max={100}
+            value={globalDiscountInput}
+            onChange={(e) => applyGlobalDiscount(Number(e.target.value))}
+          />
+          <span className="checkout-line-discount-label">
+            Applies to every item below — each can still be adjusted individually afterward.
+          </span>
+        </div>
 
         <label className="checkout-items-heading">Order ({lines.length} item{lines.length === 1 ? '' : 's'})</label>
         <div className="checkout-line-items">
