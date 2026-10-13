@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { FlavorPickerModal } from './FlavorPickerModal'
 import { MilkPickerModal } from './MilkPickerModal'
+import { SyrupPickerModal } from './SyrupPickerModal'
 import type { FlavorSelection, Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -43,10 +44,14 @@ export function MenuGrid({
   const [search, setSearch] = useState('')
   const [flavorPickerItem, setFlavorPickerItem] = useState<MenuItem | null>(null)
   const [milkPickerItem, setMilkPickerItem] = useState<MenuItem | null>(null)
+  const [syrupPickerItem, setSyrupPickerItem] = useState<MenuItem | null>(null)
   const [pendingFlavors, setPendingFlavors] = useState<FlavorSelection[]>([])
 
   const flavours = useMemo(() => ingredients.filter((i) => i.is_flavour), [ingredients])
   const milks = useMemo(() => ingredients.filter((i) => i.is_milk), [ingredients])
+  // Matches the $10 add-on buttons set up for the syrup flavours — named
+  // "Add syrup - X" so search still finds them individually too.
+  const syrupAddOns = useMemo(() => menuItems.filter((m) => m.name.startsWith('Add syrup - ')), [menuItems])
 
   const categories = useMemo(() => {
     const set = new Set(menuItems.map((item) => item.category))
@@ -101,7 +106,27 @@ export function MenuGrid({
     const item = milkPickerItem
     setMilkPickerItem(null)
     if (!item) return
-    onSelect(item, [...pendingFlavors, milk])
+    const flavors = [...pendingFlavors, milk]
+    // Chain into the syrup step next, same trigger as the milk picker — if
+    // the syrup add-on buttons ever get removed, fall back to adding
+    // straight away rather than silently stalling.
+    if (syrupAddOns.length > 0) {
+      setPendingFlavors(flavors)
+      setSyrupPickerItem(item)
+    } else {
+      onSelect(item, flavors)
+      setPendingFlavors([])
+    }
+  }
+
+  function handleSyrupConfirmed(syrupMenuItem: MenuItem | null) {
+    const item = syrupPickerItem
+    setSyrupPickerItem(null)
+    if (!item) return
+    onSelect(item, pendingFlavors)
+    // Syrup is its own $10 ticket line (same as searching and tapping it
+    // manually), not folded into the coffee's own line.
+    if (syrupMenuItem) onSelect(syrupMenuItem)
     setPendingFlavors([])
   }
 
@@ -179,6 +204,18 @@ export function MenuGrid({
             setPendingFlavors([])
           }}
           onConfirm={handleMilkConfirmed}
+        />
+      )}
+
+      {syrupPickerItem && (
+        <SyrupPickerModal
+          item={syrupPickerItem}
+          syrupAddOns={syrupAddOns}
+          onCancel={() => {
+            setSyrupPickerItem(null)
+            setPendingFlavors([])
+          }}
+          onConfirm={handleSyrupConfirmed}
         />
       )}
     </div>
