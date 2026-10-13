@@ -6,7 +6,7 @@ import type { Ingredient, MenuItem } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
-const MENU_ITEM_CSV_COLUMNS = ['name', 'category', 'price', 'ball_count', 'weight_grams', 'container', 'is_favourite', 'iva_rate']
+const MENU_ITEM_CSV_COLUMNS = ['name', 'category', 'price', 'ball_count', 'weight_grams', 'container', 'is_favourite', 'takeaway_fee_eligible', 'iva_rate']
 
 type ImportResult = { created: number; updated: number; errors: string[] }
 
@@ -93,6 +93,9 @@ export function MenuManager({ menuItems, loading, error, ingredients, onChanged 
         weight_grams: weightGrams,
         container_id: container?.id ?? null,
         is_favourite: row.is_favourite?.trim().toLowerCase() === 'true',
+        takeaway_fee_eligible: row.takeaway_fee_eligible?.trim()
+          ? row.takeaway_fee_eligible.trim().toLowerCase() === 'true'
+          : (existing?.takeaway_fee_eligible ?? false),
         iva_rate: ivaRate,
         recipe: existing?.recipe ?? [],
         updated_at: new Date().toISOString(),

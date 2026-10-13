@@ -20,6 +20,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
   const [containerId, setContainerId] = useState<string>(item?.container_id ?? '')
   const [recipe, setRecipe] = useState<RecipeEntry[]>(item?.recipe ?? [])
   const [isFavourite, setIsFavourite] = useState(item?.is_favourite ?? false)
+  const [takeawayFeeEligible, setTakeawayFeeEligible] = useState(item?.takeaway_fee_eligible ?? false)
   const [ivaRate, setIvaRate] = useState(item?.iva_rate ?? 0.16)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +53,7 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
       container_id: containerId || null,
       recipe,
       is_favourite: isFavourite,
+      takeaway_fee_eligible: takeawayFeeEligible,
       iva_rate: ivaRate,
       updated_at: new Date().toISOString(),
     }
@@ -182,6 +184,15 @@ export function MenuItemEditor({ item, categories, ingredients, onClose, onSaved
         <label className="checkbox-label">
           <input type="checkbox" checked={isFavourite} onChange={(e) => setIsFavourite(e.target.checked)} />
           Show in Favourites tab
+        </label>
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={takeawayFeeEligible}
+            onChange={(e) => setTakeawayFeeEligible(e.target.checked)}
+          />
+          Take-away fee applies (Sandwiches/Salads get this automatically)
         </label>
 
         <label htmlFor="item-iva">IVA</label>

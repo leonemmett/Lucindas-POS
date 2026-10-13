@@ -21,6 +21,7 @@ export type MenuItem = {
   recipe: RecipeEntry[]
   is_favourite: boolean
   iva_rate: number
+  takeaway_fee_eligible: boolean
   updated_at: string
 }
 

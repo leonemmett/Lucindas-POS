@@ -60,7 +60,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   }
 
   function isTakeawayEligible(line: TicketLine) {
-    return TAKEAWAY_CATEGORIES.has(line.menuItem.category)
+    return TAKEAWAY_CATEGORIES.has(line.menuItem.category) || line.menuItem.takeaway_fee_eligible
   }
 
   function lineAmounts(line: TicketLine) {
