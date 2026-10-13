@@ -643,6 +643,15 @@
   align-items: center;
 }
 
+.checkout-line-takeaway {
+  margin-top: 2px;
+}
+
+.checkout-line-takeaway .payment-option {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
 .payment-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
