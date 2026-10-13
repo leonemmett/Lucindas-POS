@@ -623,8 +623,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 48svh;
-  overflow-y: auto;
   padding: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
