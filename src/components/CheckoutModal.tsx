@@ -5,18 +5,28 @@ import { useCurrentStaff } from '../hooks/useCurrentStaff'
 import { paymentLabel } from '../lib/payments'
 import { Receipt } from './Receipt'
 import { SendReceiptControls } from './SendReceiptControls'
-import type { PaymentMethod, SaleItem, TicketLine } from '../lib/types'
+import type { FlavorSelection, Ingredient, PaymentMethod, SaleItem, TicketLine } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
+// Sandwiches/Salads/flagged items get a $10 take-away surcharge (see
+// takeaway_fee_eligible on menu_items). Coffee drinks don't cost extra to
+// take away, but still need their disposable cup/lid deducted — "Extra shot
+// of coffee" is an add-on to another drink, not its own cup, so it's excluded.
 const TAKEAWAY_FEE = 10
-const TAKEAWAY_CATEGORIES = new Set(['Sandwiches', 'Salads'])
+const TAKEAWAY_FEE_CATEGORIES = new Set(['Sandwiches', 'Salads'])
+const COFFEE_TAKEAWAY_EXCLUDE = new Set(['Extra shot of coffee'])
+const COLD_DRINK_PATTERN = /iced|frappe|cold brew/i
+
+const HOT_PACKAGING = ['White unbranded takeaway cups', 'Black hot drink takeaway lids', 'Take away sleeves', 'Wooden bamboo stirrers']
+const COLD_PACKAGING = ['Clear branded takeaway cups', 'Clear dome takeaway lids', 'Straws']
 
 type CheckoutModalProps = {
   lines: TicketLine[]
   subtotal: number
   tableName: string | null
   receiptsEnabled: boolean
+  ingredients: Ingredient[]
   onClose: () => void
   onComplete: () => void
 }
@@ -33,9 +43,10 @@ type CompletedSale = {
   changeDue: number
 }
 
-export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onClose, onComplete }: CheckoutModalProps) {
+export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ingredients, onClose, onComplete }: CheckoutModalProps) {
   const { card1Label, card2Label } = useCardLabels()
   const { staffId } = useCurrentStaff()
+  const ingredientByName = useMemo(() => new Map(ingredients.map((i) => [i.name, i])), [ingredients])
 
   const [payment, setPayment] = useState<PaymentMethod>('cash')
   // Keyed by line.key — seeded from whatever discount was already set per
@@ -60,15 +71,36 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     return lineDiscounts[key] ?? 0
   }
 
+  function isFeeEligible(line: TicketLine) {
+    return TAKEAWAY_FEE_CATEGORIES.has(line.menuItem.category) || line.menuItem.takeaway_fee_eligible
+  }
+
+  function isPackagingEligible(line: TicketLine) {
+    return line.menuItem.category === 'Coffee' && !COFFEE_TAKEAWAY_EXCLUDE.has(line.menuItem.name)
+  }
+
   function isTakeawayEligible(line: TicketLine) {
-    return TAKEAWAY_CATEGORIES.has(line.menuItem.category) || line.menuItem.takeaway_fee_eligible
+    return isFeeEligible(line) || isPackagingEligible(line)
+  }
+
+  // Coffee take-away doesn't cost extra, but still needs its disposable
+  // cup/lid (+ sleeve/stirrer for hot, or a straw for iced/frappe) deducted —
+  // reuses the same generic `flavors` deduction every milk/syrup/gelato
+  // choice already goes through, scaled by how many of this line were sold.
+  function packagingFlavorsFor(line: TicketLine): FlavorSelection[] {
+    if (!isPackagingEligible(line)) return []
+    const names = COLD_DRINK_PATTERN.test(line.menuItem.name) ? COLD_PACKAGING : HOT_PACKAGING
+    return names.flatMap((name) => {
+      const ing = ingredientByName.get(name)
+      return ing ? [{ ingredient_id: ing.id, name: ing.name, grams: line.qty }] : []
+    })
   }
 
   function lineAmounts(line: TicketLine) {
     const lineSubtotal = line.menuItem.price * line.qty
     const pct = lineDiscountPercent(line.key)
     const discount = lineSubtotal * (pct / 100)
-    const takeawayFee = isTakeawayEligible(line) && lineTakeaway[line.key] ? TAKEAWAY_FEE * line.qty : 0
+    const takeawayFee = isFeeEligible(line) && lineTakeaway[line.key] ? TAKEAWAY_FEE * line.qty : 0
     return { lineSubtotal, pct, discount, takeawayFee, lineTotal: lineSubtotal - discount + takeawayFee }
   }
 
@@ -83,7 +115,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const takeawayFeeTotal = useMemo(
     () =>
       lines.reduce(
-        (sum, line) => sum + (isTakeawayEligible(line) && lineTakeaway[line.key] ? TAKEAWAY_FEE * line.qty : 0),
+        (sum, line) => sum + (isFeeEligible(line) && lineTakeaway[line.key] ? TAKEAWAY_FEE * line.qty : 0),
         0,
       ),
     [lines, lineTakeaway],
@@ -136,12 +168,14 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
 
     const items: SaleItem[] = lines.map((line) => {
       const { pct, discount, takeawayFee } = lineAmounts(line)
+      const packaging = lineTakeaway[line.key] ? packagingFlavorsFor(line) : []
+      const flavors = [...(line.flavors ?? []), ...packaging]
       return {
         menu_item_id: line.menuItem.id,
         name: line.menuItem.name,
         price: line.menuItem.price,
         qty: line.qty,
-        flavors: line.flavors,
+        flavors: flavors.length > 0 ? flavors : undefined,
         iva_rate: line.menuItem.iva_rate,
         discount_percent: pct,
         discount_amount: discount,
@@ -266,7 +300,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
                       className={`payment-option${isTakeaway ? ' active' : ''}`}
                       onClick={() => setLineTakeawayValue(line.key, true)}
                     >
-                      Take away (+{currency.format(TAKEAWAY_FEE * line.qty)})
+                      Take away{isFeeEligible(line) ? ` (+${currency.format(TAKEAWAY_FEE * line.qty)})` : ''}
                     </button>
                   </div>
                 )}

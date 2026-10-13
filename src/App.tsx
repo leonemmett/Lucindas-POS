@@ -562,6 +562,7 @@ function App() {
               subtotal={subtotal}
               tableName={selectedTableName}
               receiptsEnabled={receiptsEnabled}
+              ingredients={ingredients}
               onClose={() => setCheckoutOpen(false)}
               onComplete={handleCheckoutComplete}
             />
