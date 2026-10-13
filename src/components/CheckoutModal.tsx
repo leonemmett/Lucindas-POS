@@ -272,21 +272,6 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
       <div className="modal-card checkout-modal">
         <h2>Checkout{tableName ? ` — ${tableName}` : ''}</h2>
 
-        <label htmlFor="global-discount">Discount entire order %</label>
-        <div className="discount-row">
-          <input
-            id="global-discount"
-            type="number"
-            min={0}
-            max={100}
-            value={globalDiscountInput}
-            onChange={(e) => applyGlobalDiscount(Number(e.target.value))}
-          />
-          <span className="checkout-line-discount-label">
-            Applies to every item below — each can still be adjusted individually afterward.
-          </span>
-        </div>
-
         <label className="checkout-items-heading">Order ({lines.length} item{lines.length === 1 ? '' : 's'})</label>
         <div className="checkout-line-items">
           {lines.map((line) => {
@@ -400,16 +385,34 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, ing
           </div>
         )}
 
-        <label htmlFor="customers">Customers</label>
-        <div className="customers-stepper">
-          <button type="button" onClick={() => setCustomers((n) => Math.max(1, n - 1))}>
-            −
-          </button>
-          <span>{customers}</span>
-          <button type="button" onClick={() => setCustomers((n) => n + 1)}>
-            +
-          </button>
+        <div className="checkout-dual-row">
+          <div>
+            <label htmlFor="global-discount">Discount entire order %</label>
+            <input
+              id="global-discount"
+              type="number"
+              min={0}
+              max={100}
+              value={globalDiscountInput}
+              onChange={(e) => applyGlobalDiscount(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <label htmlFor="customers">Customers</label>
+            <div className="customers-stepper">
+              <button type="button" onClick={() => setCustomers((n) => Math.max(1, n - 1))}>
+                −
+              </button>
+              <span>{customers}</span>
+              <button type="button" onClick={() => setCustomers((n) => n + 1)}>
+                +
+              </button>
+            </div>
+          </div>
         </div>
+        <p className="settings-hint">
+          Discount applies to every item in the order — each can still be adjusted individually above.
+        </p>
 
         <label htmlFor="note">Note (optional)</label>
         <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />

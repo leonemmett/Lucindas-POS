@@ -713,6 +713,22 @@
   color: #fff;
 }
 
+.checkout-dual-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.checkout-dual-row label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.checkout-dual-row input {
+  width: 100%;
+}
+
 .customers-stepper {
   display: flex;
   align-items: center;
