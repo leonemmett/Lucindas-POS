@@ -90,6 +90,9 @@ export type SaleItem = {
   iva_rate?: number
   discount_percent?: number
   discount_amount?: number
+  // Take-away surcharge for Sandwiches/Salads, asked once at checkout and
+  // applied per unit — see TAKEAWAY_FEE/TAKEAWAY_CATEGORIES in CheckoutModal.
+  takeaway_fee?: number
 }
 
 export type Sale = {

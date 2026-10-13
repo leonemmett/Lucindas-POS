@@ -70,7 +70,8 @@ export async function generateReceiptPdf(input: ReceiptContent): Promise<Blob> {
   doc.setFontSize(11)
   for (const item of input.items) {
     const itemDiscount = item.discount_amount ?? 0
-    const itemTotal = item.price * item.qty - itemDiscount
+    const itemTakeawayFee = item.takeaway_fee ?? 0
+    const itemTotal = item.price * item.qty - itemDiscount + itemTakeawayFee
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(INK)
     doc.text(`${item.qty} × ${item.name}`, marginX, y)
@@ -87,6 +88,13 @@ export async function generateReceiptPdf(input: ReceiptContent): Promise<Blob> {
       doc.setFontSize(9)
       doc.setTextColor(MUTED)
       doc.text(`${item.discount_percent}% off (-${currency.format(itemDiscount)})`, marginX + 4, y)
+      doc.setFontSize(11)
+      y += 5
+    }
+    if (itemTakeawayFee > 0) {
+      doc.setFontSize(9)
+      doc.setTextColor(MUTED)
+      doc.text(`Take away (+${currency.format(itemTakeawayFee)})`, marginX + 4, y)
       doc.setFontSize(11)
       y += 5
     }
@@ -107,6 +115,13 @@ export async function generateReceiptPdf(input: ReceiptContent): Promise<Blob> {
   if (input.discountAmount > 0) {
     doc.text(`Discount (${input.discountPercent}%)`, marginX, y)
     doc.text(`-${currency.format(input.discountAmount)}`, pageWidth - marginX, y, { align: 'right' })
+    y += 6
+  }
+
+  const takeawayFeeTotal = input.items.reduce((sum, i) => sum + (i.takeaway_fee ?? 0), 0)
+  if (takeawayFeeTotal > 0) {
+    doc.text('Take away fee', marginX, y)
+    doc.text(currency.format(takeawayFeeTotal), pageWidth - marginX, y, { align: 'right' })
     y += 6
   }
 

@@ -46,12 +46,14 @@ export function SaleDetailsModal({ sale, staffNames, onClose, onVoided }: SaleDe
         <ul className="sale-items-list">
           {sale.items.map((item, i) => {
             const itemDiscount = item.discount_amount ?? 0
-            const itemTotal = item.price * item.qty - itemDiscount
+            const itemTakeawayFee = item.takeaway_fee ?? 0
+            const itemTotal = item.price * item.qty - itemDiscount + itemTakeawayFee
             return (
               <li key={i} className="ticket-line-info">
                 <span>
                   {item.qty} × {item.name}
                   {itemDiscount > 0 ? ` (${item.discount_percent}% off)` : ''}
+                  {itemTakeawayFee > 0 ? ' (take away)' : ''}
                 </span>
                 <span>{currency.format(itemTotal)}</span>
               </li>
@@ -68,6 +70,12 @@ export function SaleDetailsModal({ sale, staffNames, onClose, onVoided }: SaleDe
             <span>Discount {sale.discount_percent > 0 ? `(${sale.discount_percent}%)` : ''}</span>
             <span>{currency.format(sale.discount_amount)}</span>
           </div>
+          {sale.items.some((i) => (i.takeaway_fee ?? 0) > 0) && (
+            <div className="checkout-row">
+              <span>Take away fee</span>
+              <span>{currency.format(sale.items.reduce((sum, i) => sum + (i.takeaway_fee ?? 0), 0))}</span>
+            </div>
+          )}
           <div className="checkout-row checkout-total">
             <span>Total</span>
             <span>{currency.format(sale.total)}</span>

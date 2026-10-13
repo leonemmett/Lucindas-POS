@@ -45,7 +45,8 @@ export function Receipt({
         <div className="receipt-items">
           {items.map((item, i) => {
             const itemDiscount = item.discount_amount ?? 0
-            const itemTotal = item.price * item.qty - itemDiscount
+            const itemTakeawayFee = item.takeaway_fee ?? 0
+            const itemTotal = item.price * item.qty - itemDiscount + itemTakeawayFee
             return (
               <div className="receipt-line-group" key={i}>
                 <div className="receipt-line">
@@ -62,6 +63,9 @@ export function Receipt({
                     {item.discount_percent}% off (-{currency.format(itemDiscount)})
                   </div>
                 )}
+                {itemTakeawayFee > 0 && (
+                  <div className="receipt-line-flavors">Take away (+{currency.format(itemTakeawayFee)})</div>
+                )}
               </div>
             )
           })}
@@ -77,6 +81,12 @@ export function Receipt({
           <div className="receipt-line">
             <span>Discount ({discountPercent}%)</span>
             <span>-{currency.format(discountAmount)}</span>
+          </div>
+        )}
+        {items.some((i) => (i.takeaway_fee ?? 0) > 0) && (
+          <div className="receipt-line">
+            <span>Take away fee</span>
+            <span>{currency.format(items.reduce((sum, i) => sum + (i.takeaway_fee ?? 0), 0))}</span>
           </div>
         )}
         <div className="receipt-line receipt-total">

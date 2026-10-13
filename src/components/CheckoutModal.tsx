@@ -9,6 +9,9 @@ import type { PaymentMethod, SaleItem, TicketLine } from '../lib/types'
 
 const currency = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
+const TAKEAWAY_FEE = 10
+const TAKEAWAY_CATEGORIES = new Set(['Sandwiches', 'Salads'])
+
 type CheckoutModalProps = {
   lines: TicketLine[]
   subtotal: number
@@ -42,6 +45,9 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
   const [lineDiscounts, setLineDiscounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(lines.map((line) => [line.key, line.discountPercent ?? 0])),
   )
+  // Asked once per order, not per item — applies the take-away surcharge to
+  // every eligible (Sandwiches/Salads) line at once.
+  const [takeaway, setTakeaway] = useState(false)
   const [customers, setCustomers] = useState(1)
   const [note, setNote] = useState('')
   const [cashGiven, setCashGiven] = useState(0)
@@ -53,12 +59,19 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     return lineDiscounts[key] ?? 0
   }
 
+  function isTakeawayEligible(line: TicketLine) {
+    return TAKEAWAY_CATEGORIES.has(line.menuItem.category)
+  }
+
   function lineAmounts(line: TicketLine) {
     const lineSubtotal = line.menuItem.price * line.qty
     const pct = lineDiscountPercent(line.key)
     const discount = lineSubtotal * (pct / 100)
-    return { lineSubtotal, pct, discount, lineTotal: lineSubtotal - discount }
+    const takeawayFee = takeaway && isTakeawayEligible(line) ? TAKEAWAY_FEE * line.qty : 0
+    return { lineSubtotal, pct, discount, takeawayFee, lineTotal: lineSubtotal - discount + takeawayFee }
   }
+
+  const hasTakeawayEligibleLines = lines.some(isTakeawayEligible)
 
   const discountAmount = useMemo(
     () =>
@@ -68,7 +81,14 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
       }, 0),
     [lines, lineDiscounts],
   )
-  const total = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount])
+  const takeawayFeeTotal = useMemo(
+    () => (takeaway ? lines.reduce((sum, line) => sum + (isTakeawayEligible(line) ? TAKEAWAY_FEE * line.qty : 0), 0) : 0),
+    [lines, takeaway],
+  )
+  const total = useMemo(
+    () => subtotal - discountAmount + takeawayFeeTotal,
+    [subtotal, discountAmount, takeawayFeeTotal],
+  )
   // Blended rate across the whole order — stored on the sale for reporting
   // (e.g. "100% discount = staff consumption" in SalesReport), even though
   // it's derived from per-item rates rather than a single order-wide one.
@@ -108,7 +128,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
     setError(null)
 
     const items: SaleItem[] = lines.map((line) => {
-      const { pct, discount } = lineAmounts(line)
+      const { pct, discount, takeawayFee } = lineAmounts(line)
       return {
         menu_item_id: line.menuItem.id,
         name: line.menuItem.name,
@@ -118,6 +138,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
         iva_rate: line.menuItem.iva_rate,
         discount_percent: pct,
         discount_amount: discount,
+        takeaway_fee: takeawayFee,
       }
     })
 
@@ -200,7 +221,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
         <label>Items &amp; discounts</label>
         <div className="checkout-line-items">
           {lines.map((line) => {
-            const { lineSubtotal, pct, discount, lineTotal } = lineAmounts(line)
+            const { lineSubtotal, pct, discount, takeawayFee, lineTotal } = lineAmounts(line)
             return (
               <div className="checkout-line-item" key={line.key}>
                 <div className="ticket-line-info">
@@ -220,6 +241,7 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
                   />
                   <span className="checkout-line-discount-label">
                     % off{discount > 0 ? ` (-${currency.format(discount)} of ${currency.format(lineSubtotal)})` : ''}
+                    {takeawayFee > 0 ? ` · +${currency.format(takeawayFee)} take away` : ''}
                   </span>
                 </div>
               </div>
@@ -235,6 +257,28 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
           Staff (100% off everything)
         </button>
 
+        {hasTakeawayEligibleLines && (
+          <>
+            <label>Take away?</label>
+            <div className="payment-options">
+              <button
+                type="button"
+                className={`payment-option${!takeaway ? ' active' : ''}`}
+                onClick={() => setTakeaway(false)}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className={`payment-option${takeaway ? ' active' : ''}`}
+                onClick={() => setTakeaway(true)}
+              >
+                Yes (+{currency.format(TAKEAWAY_FEE)} per sandwich/salad)
+              </button>
+            </div>
+          </>
+        )}
+
         <div className="checkout-summary">
           <div className="checkout-row">
             <span>Subtotal</span>
@@ -244,6 +288,12 @@ export function CheckoutModal({ lines, subtotal, tableName, receiptsEnabled, onC
             <span>Discount</span>
             <span>{currency.format(discountAmount)}</span>
           </div>
+          {takeawayFeeTotal > 0 && (
+            <div className="checkout-row">
+              <span>Take away fee</span>
+              <span>{currency.format(takeawayFeeTotal)}</span>
+            </div>
+          )}
           <div className="checkout-row checkout-total">
             <span>Total</span>
             <span>{currency.format(total)}</span>

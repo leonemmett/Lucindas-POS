@@ -156,7 +156,7 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
       for (const item of s.items) {
         const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0 }
         prev.qty += item.qty
-        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0)
+        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0) + (item.takeaway_fee ?? 0)
         map.set(item.menu_item_id, prev)
       }
     }
@@ -228,7 +228,7 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
         const rate = item.iva_rate ?? menuItemById.get(item.menu_item_id)?.iva_rate ?? 0.16
         const gross =
           item.discount_amount !== undefined
-            ? item.price * item.qty - item.discount_amount
+            ? item.price * item.qty - item.discount_amount + (item.takeaway_fee ?? 0)
             : item.price * item.qty * ratio
         if (rate === 0) {
           row.exempt_total += gross
@@ -291,7 +291,7 @@ export function SalesReport({ menuItems, ingredients }: SalesReportProps) {
         const { cost, hasIngredients } = saleItemUnitCost(item, menuItem, costByIngredientId)
         const prev = map.get(item.menu_item_id) ?? { name: item.name, qty: 0, revenue: 0, cost: 0, hasIngredients: false }
         prev.qty += item.qty
-        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0)
+        prev.revenue += item.price * item.qty - (item.discount_amount ?? 0) + (item.takeaway_fee ?? 0)
         prev.cost += cost * item.qty
         prev.hasIngredients = prev.hasIngredients || hasIngredients
         map.set(item.menu_item_id, prev)
