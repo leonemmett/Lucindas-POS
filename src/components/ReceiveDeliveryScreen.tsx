@@ -80,7 +80,7 @@ export function ReceiveDeliveryScreen({
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
     const list = q ? ingredients.filter((i) => i.name.toLowerCase().includes(q)) : ingredients
-    return [...list].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50)
+    return [...list].sort((a, b) => a.name.localeCompare(b.name))
   }, [ingredients, search])
 
   const selected = ingredients.find((i) => i.id === selectedId) ?? null
