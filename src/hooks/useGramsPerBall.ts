@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
 export function useGramsPerBall() {
-  const [gramsPerBall, setGramsPerBall] = useState(100)
+  const [gramsPerBall, setGramsPerBall] = useState(110)
 
   useEffect(() => {
     let cancelled = false
